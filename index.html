@@ -4,19 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="theme-color" content="#10070d">
-  <title>DOOR Calculator</title>
+  <meta name="theme-color" content="#071018">
+  <title>Calculator</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="./style.css">
 </head>
-<body>
+<body class="theme-blue">
   <div class="particles" aria-hidden="true"></div>
 
   <main class="app">
     <header class="brand">
       <div class="logo">÷</div>
-      <h1>DOOR <span>CALCULATOR</span></h1>
+      <h1>CALCULATOR</h1>
       <p>SMART TOOLS. DARK STYLE.</p>
     </header>
 
@@ -60,7 +60,7 @@
       </div>
 
       <div class="footer">
-        <span>DOOR SYSTEM</span>
+        <span>CALC SYSTEM</span>
         <span>● SECURE INTERFACE</span>
       </div>
     </section>
@@ -76,7 +76,7 @@
       </div>
       <div class="nav-item" id="themeBtn">
         <span>◐</span>
-        <small>Тема</small>
+        <small>Цвета</small>
       </div>
     </div>
 
@@ -86,6 +86,17 @@
       <button id="clearHistory" class="history-clear">
         Очистить историю
       </button>
+    </section>
+
+    <section class="color-panel" id="colorPanel" hidden>
+      <h3>Выбор цвета</h3>
+      <div class="color-options">
+        <div class="color-dot selected" data-theme="blue"   title="Голубая"></div>
+        <div class="color-dot" data-theme="pink"   title="Розовая"></div>
+        <div class="color-dot" data-theme="purple" title="Фиолетовая"></div>
+        <div class="color-dot" data-theme="green"  title="Зелёная"></div>
+        <div class="color-dot" data-theme="orange" title="Оранжевая"></div>
+      </div>
     </section>
 
     <p class="copyright">DESIGNED FOR TELEGRAM MINI APPS</p>
