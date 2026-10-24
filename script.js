@@ -1,4 +1,6 @@
-/* ========== TELEGRAM ========== */
+/* ========== ЗАЩИТА ОТ ПАДЕНИЙ ========== */
+console.log("[pong] script.js загружен");
+
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
@@ -15,8 +17,9 @@ const THEME_COLORS = {
   magenta: "#140518",
 };
 
-const colorDots = document.querySelectorAll(".color-dot");
-const colorModal = document.getElementById("colorModal");
+const colorDots   = document.querySelectorAll(".color-dot");
+const colorModal  = document.getElementById("colorModal");
+const colorOptions= document.getElementById("colorOptions");
 
 let colors = { accent: "#ffffff", accent2: "#bdbdbd" };
 
@@ -30,7 +33,7 @@ function applyTheme(theme) {
   if (!THEMES.includes(theme)) theme = "black";
   THEMES.forEach(t => document.body.classList.remove("theme-" + t));
   document.body.classList.add("theme-" + theme);
-  localStorage.setItem("theme", theme);
+  try { localStorage.setItem("theme", theme); } catch (e) {}
 
   colorDots.forEach(dot => {
     dot.classList.toggle("selected", dot.dataset.theme === theme);
@@ -42,16 +45,47 @@ function applyTheme(theme) {
   readColors();
 }
 
-applyTheme(localStorage.getItem("theme") || "black");
+applyTheme((() => { try { return localStorage.getItem("theme"); } catch(e) { return null; } })() || "black");
 
 /* ========== КАНВАС ========== */
 const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const stage = document.getElementById("stage");
-
+const stage  = document.getElementById("stage");
+let ctx = null;
 let W = 0, H = 0, DPR = 1;
 
+function getCtx() {
+  if (!ctx && canvas) ctx = canvas.getContext("2d");
+  return ctx;
+}
+
+/* ========== СОСТОЯНИЕ ИГРЫ ========== */
+const state = {
+  paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0 },
+  ball:   { x: 0, y: 0, vx: 0, vy: 0, r: 9 },
+  trail: [],
+  score: 0,
+  best: 0,
+  baseSpeed: 320,
+  speedMul: 1,
+  phase: "idle",
+  modalOpen: false,
+};
+
+try { state.best = Number(localStorage.getItem("pong_best") || 0); } catch(e) {}
+
+function placeBall() {
+  const b = state.ball;
+  b.x = W / 2;
+  b.y = Math.max(40, H * 0.28);
+  const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+  const speed = state.baseSpeed * state.speedMul;
+  b.vx = Math.cos(angle) * speed;
+  b.vy = Math.sin(angle) * speed;
+  state.trail = [];
+}
+
 function resize() {
+  if (!canvas || !stage) return;
   const rect = stage.getBoundingClientRect();
   W = Math.max(1, Math.floor(rect.width));
   H = Math.max(1, Math.floor(rect.height));
@@ -60,14 +94,14 @@ function resize() {
   canvas.height = Math.floor(H * DPR);
   canvas.style.width  = W + "px";
   canvas.style.height = H + "px";
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-  // размеры платформы
+  const c = getCtx();
+  if (c) c.setTransform(DPR, 0, 0, DPR, 0, 0);
+
   state.paddle.w = Math.round(Math.max(70, Math.min(W * 0.3, 130)));
   state.paddle.h = 14;
   state.paddle.y = H - 30;
 
-  // не даём уехать за края
   state.paddle.x = Math.max(0, Math.min(W - state.paddle.w, state.paddle.x));
   state.paddle.targetX = state.paddle.x;
 
@@ -78,39 +112,20 @@ function resize() {
   }
 }
 
-new ResizeObserver(() => resize()).observe(stage);
-
-/* ========== СОСТОЯНИЕ ИГРЫ ========== */
-const state = {
-  paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0 },
-  ball:   { x: 0, y: 0, vx: 0, vy: 0, r: 9 },
-  trail: [],
-  score: 0,
-  best: Number(localStorage.getItem("pong_best") || 0),
-  baseSpeed: 340,       // px/сек
-  speedMul: 1,
-  phase: "idle",        // idle | playing | over
-  modalOpen: false,
-};
-
-function placeBall() {
-  const b = state.ball;
-  b.x = W / 2;
-  b.y = H * 0.28;
-  const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.6; // вниз ±17°
-  const speed = state.baseSpeed * state.speedMul;
-  b.vx = Math.cos(angle) * speed;
-  b.vy = Math.sin(angle) * speed;
-  state.trail = [];
+/* ResizeObserver может не быть — фолбэк */
+if (typeof ResizeObserver !== "undefined" && stage) {
+  try { new ResizeObserver(() => resize()).observe(stage); } catch(e) {}
 }
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 100));
 
 /* ========== HUD ========== */
 const scoreEl = document.getElementById("score");
 const bestEl  = document.getElementById("best");
 
 function updateHUD() {
-  scoreEl.textContent = state.score;
-  bestEl.textContent  = state.best;
+  if (scoreEl) scoreEl.textContent = state.score;
+  if (bestEl)  bestEl.textContent  = state.best;
 }
 updateHUD();
 
@@ -121,15 +136,16 @@ const overlaySub   = document.getElementById("overlaySub");
 const overlayBtn   = document.getElementById("overlayBtn");
 
 function showOverlay(title, sub, btn) {
-  overlayTitle.textContent = title;
-  overlaySub.textContent   = sub;
-  overlayBtn.textContent   = btn;
-  overlay.hidden = false;
+  if (overlayTitle) overlayTitle.textContent = title;
+  if (overlaySub)   overlaySub.textContent   = sub;
+  if (overlayBtn)   overlayBtn.textContent   = btn;
+  if (overlay)      overlay.hidden = false;
 }
-function hideOverlay() { overlay.hidden = true; }
+function hideOverlay() { if (overlay) overlay.hidden = true; }
 
 /* ========== СТАРТ / КОНЕЦ ========== */
 function startGame() {
+  console.log("[pong] startGame");
   state.score = 0;
   state.speedMul = 1;
   state.phase = "playing";
@@ -146,24 +162,41 @@ function gameOver() {
   state.speedMul = 1;
   if (state.score > state.best) {
     state.best = state.score;
-    localStorage.setItem("pong_best", state.best);
+    try { localStorage.setItem("pong_best", state.best); } catch(e) {}
   }
   updateHUD();
   showOverlay("Игра окончена", `Счёт: ${state.score}`, "Играть снова");
   tg?.HapticFeedback?.notificationOccurred?.("error");
 }
 
-overlay.addEventListener("click", () => {
-  if (state.phase === "idle" || state.phase === "over") startGame();
-});
+/* обработчик overlay — клик И тап */
+if (overlay) {
+  const onOverlay = (e) => {
+    e.preventDefault();
+    if (state.phase === "idle" || state.phase === "over") startGame();
+  };
+  overlay.addEventListener("click", onOverlay);
+  overlay.addEventListener("touchend", onOverlay, { passive: false });
+}
 
 /* ========== УПРАВЛЕНИЕ ========== */
-window.addEventListener("pointermove", (e) => {
-  if (state.phase !== "playing" && state.phase !== "idle") return;
+function movePaddleTo(clientX) {
+  if (!stage) return;
   const rect = stage.getBoundingClientRect();
-  const x = e.clientX - rect.left;
+  const x = clientX - rect.left;
   state.paddle.targetX = x - state.paddle.w / 2;
+}
+
+window.addEventListener("pointermove", (e) => {
+  if (state.modalOpen) return;
+  if (state.phase !== "playing" && state.phase !== "idle") return;
+  movePaddleTo(e.clientX);
 });
+window.addEventListener("touchmove", (e) => {
+  if (state.modalOpen) return;
+  if (state.phase !== "playing" && state.phase !== "idle") return;
+  if (e.touches[0]) movePaddleTo(e.touches[0].clientX);
+}, { passive: true });
 
 window.addEventListener("keydown", (e) => {
   const step = 40;
@@ -177,16 +210,12 @@ function update(dt) {
   if (state.modalOpen) return;
 
   const p = state.paddle;
-
-  // плавное движение платформы
   p.x += (p.targetX - p.x) * Math.min(1, dt * 20);
   p.x = Math.max(0, Math.min(W - p.w, p.x));
 
   if (state.phase !== "playing") return;
 
   const b = state.ball;
-
-  // стабилизация скорости (шарик летит с постоянной скоростью)
   const targetSpeed = state.baseSpeed * state.speedMul;
   const mag = Math.hypot(b.vx, b.vy) || 1;
   b.vx = (b.vx / mag) * targetSpeed;
@@ -196,22 +225,19 @@ function update(dt) {
   b.x += b.vx * dt;
   b.y += b.vy * dt;
 
-  // стены
-  if (b.x - b.r < 0)     { b.x = b.r;     b.vx =  Math.abs(b.vx); }
-  if (b.x + b.r > W)     { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
-  if (b.y - b.r < 0)     { b.y = b.r;     b.vy =  Math.abs(b.vy); }
+  if (b.x - b.r < 0) { b.x = b.r;     b.vx =  Math.abs(b.vx); }
+  if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+  if (b.y - b.r < 0) { b.y = b.r;     b.vy =  Math.abs(b.vy); }
 
-  // столкновение с платформой
   if (
     b.vy > 0 &&
-    prevY + b.r <= p.y &&          // был выше платформы
-    b.y + b.r >= p.y &&            // и пересёк её верх
+    prevY + b.r <= p.y &&
+    b.y + b.r >= p.y &&
     b.x + b.r >= p.x &&
     b.x - b.r <= p.x + p.w
   ) {
-    // угол отскока зависит от места попадания
-    const rel = ((b.x - p.x) / p.w) * 2 - 1; // -1..1
-    const angle = rel * 1.05;                 // до ±60°
+    const rel = ((b.x - p.x) / p.w) * 2 - 1;
+    const angle = rel * 1.05;
     state.speedMul = Math.min(2.2, state.speedMul * 1.03);
     const speed = state.baseSpeed * state.speedMul;
     b.vx = Math.sin(angle) * speed;
@@ -223,91 +249,84 @@ function update(dt) {
     tg?.HapticFeedback?.impactOccurred?.("light");
   }
 
-  // шар упал
-  if (b.y - b.r > H + 10) {
-    gameOver();
-    return;
-  }
+  if (b.y - b.r > H + 10) { gameOver(); return; }
 
-  // след
   state.trail.push({ x: b.x, y: b.y });
   if (state.trail.length > 16) state.trail.shift();
 }
 
 /* ========== ОТРИСОВКА ========== */
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.lineTo(x + w, y + h - r);
+  c.arcTo(x + w, y + h, x + w - r, y + h, r);
+  c.lineTo(x + r, y + h);
+  c.arcTo(x, y + h, x, y + h - r, r);
+  c.lineTo(x, y + r);
+  c.arcTo(x, y, x + r, y, r);
+  c.closePath();
+}
+
 function draw() {
-  ctx.clearRect(0, 0, W, H);
+  const c = getCtx();
+  if (!c) return;
+  c.clearRect(0, 0, W, H);
 
-  // центральная линия
-  ctx.strokeStyle = colors.accent;
-  ctx.globalAlpha = 0.12;
-  ctx.setLineDash([4, 10]);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(W / 2, 16);
-  ctx.lineTo(W / 2, H - 16);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
+  c.strokeStyle = colors.accent;
+  c.globalAlpha = 0.12;
+  c.setLineDash([4, 10]);
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(W / 2, 16);
+  c.lineTo(W / 2, H - 16);
+  c.stroke();
+  c.setLineDash([]);
+  c.globalAlpha = 1;
 
-  // след шарика
   state.trail.forEach((t, i) => {
     const a = ((i + 1) / state.trail.length) * 0.35;
     const r = state.ball.r * (i / state.trail.length);
-    ctx.globalAlpha = a;
-    ctx.fillStyle = colors.accent;
-    ctx.beginPath();
-    ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
-    ctx.fill();
+    c.globalAlpha = a;
+    c.fillStyle = colors.accent;
+    c.beginPath();
+    c.arc(t.x, t.y, r, 0, Math.PI * 2);
+    c.fill();
   });
-  ctx.globalAlpha = 1;
+  c.globalAlpha = 1;
 
-  // платформа
   const p = state.paddle;
-  ctx.save();
-  roundRect(p.x, p.y, p.w, p.h, p.h / 2);
-  const grd = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+  c.save();
+  roundRect(c, p.x, p.y, p.w, p.h, p.h / 2);
+  const grd = c.createLinearGradient(p.x, 0, p.x + p.w, 0);
   grd.addColorStop(0,   colors.accent2);
   grd.addColorStop(0.5, colors.accent);
   grd.addColorStop(1,   colors.accent2);
-  ctx.fillStyle = grd;
-  ctx.shadowBlur = 22;
-  ctx.shadowColor = colors.accent;
-  ctx.fill();
-  ctx.restore();
+  c.fillStyle = grd;
+  c.shadowBlur = 22;
+  c.shadowColor = colors.accent;
+  c.fill();
+  c.restore();
 
-  // шарик
   const b = state.ball;
   if (state.phase !== "over") {
-    ctx.save();
-    const ballGrad = ctx.createRadialGradient(
+    c.save();
+    const ballGrad = c.createRadialGradient(
       b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15,
       b.x, b.y, b.r
     );
     ballGrad.addColorStop(0, "#ffffff");
     ballGrad.addColorStop(1, colors.accent);
-    ctx.fillStyle = ballGrad;
-    ctx.shadowBlur = 24;
-    ctx.shadowColor = colors.accent;
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    c.fillStyle = ballGrad;
+    c.shadowBlur = 24;
+    c.shadowColor = colors.accent;
+    c.beginPath();
+    c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
   }
-}
-
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
 }
 
 /* ========== ЦИКЛ ========== */
@@ -321,24 +340,46 @@ function loop(t) {
 }
 
 /* ========== КНОПКИ ========== */
-document.getElementById("restartBtn").addEventListener("click", () => {
+const restartBtn = document.getElementById("restartBtn");
+const themeBtn   = document.getElementById("themeBtn");
+const closeBtn   = document.getElementById("closeColors");
+
+function bindTap(el, handler) {
+  if (!el) return;
+  let touched = false;
+  el.addEventListener("touchstart", () => { touched = true; }, { passive: true });
+  el.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    if (touched) { touched = false; handler(); }
+  }, { passive: false });
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (touched) { touched = false; return; }
+    handler();
+  });
+}
+
+bindTap(restartBtn, () => {
+  console.log("[pong] restart");
   startGame();
   tg?.HapticFeedback?.selectionChanged?.();
 });
 
-document.getElementById("themeBtn").addEventListener("click", () => {
+bindTap(themeBtn, () => {
+  console.log("[pong] theme открыт");
   state.modalOpen = true;
-  colorModal.hidden = false;
+  if (colorModal) colorModal.hidden = false;
   tg?.HapticFeedback?.selectionChanged?.();
 });
 
-document.getElementById("closeColors").addEventListener("click", () => {
+bindTap(closeBtn, () => {
+  console.log("[pong] theme закрыт");
   state.modalOpen = false;
-  colorModal.hidden = true;
+  if (colorModal) colorModal.hidden = true;
 });
 
 colorDots.forEach(dot => {
-  dot.addEventListener("click", () => {
+  bindTap(dot, () => {
     applyTheme(dot.dataset.theme);
     tg?.HapticFeedback?.selectionChanged?.();
   });
