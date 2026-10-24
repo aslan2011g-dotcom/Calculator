@@ -1,6 +1,4 @@
-/* ========== ЗАЩИТА ОТ ПАДЕНИЙ ========== */
-console.log("[pong] script.js загружен");
-
+/* ========== TELEGRAM ========== */
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
@@ -17,9 +15,8 @@ const THEME_COLORS = {
   magenta: "#140518",
 };
 
-const colorDots   = document.querySelectorAll(".color-dot");
-const colorModal  = document.getElementById("colorModal");
-const colorOptions= document.getElementById("colorOptions");
+const colorDots    = document.querySelectorAll(".color-dot");
+const colorModal   = document.getElementById("colorModal");
 
 let colors = { accent: "#ffffff", accent2: "#bdbdbd" };
 
@@ -41,7 +38,6 @@ function applyTheme(theme) {
 
   tg?.setHeaderColor?.(THEME_COLORS[theme]);
   tg?.setBackgroundColor?.(THEME_COLORS[theme]);
-
   readColors();
 }
 
@@ -58,10 +54,13 @@ function getCtx() {
   return ctx;
 }
 
-/* ========== СОСТОЯНИЕ ИГРЫ ========== */
+/* ========== СОСТОЯНИЕ ========== */
+const MAX_BALLS = 12;
+const BALL_R = 9;
+
 const state = {
   paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0 },
-  ball:   { x: 0, y: 0, vx: 0, vy: 0, r: 9 },
+  balls: [],
   trail: [],
   score: 0,
   best: 0,
@@ -73,14 +72,20 @@ const state = {
 
 try { state.best = Number(localStorage.getItem("pong_best") || 0); } catch(e) {}
 
-function placeBall() {
-  const b = state.ball;
-  b.x = W / 2;
-  b.y = Math.max(40, H * 0.28);
-  const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+function createBall(x, y, angle) {
   const speed = state.baseSpeed * state.speedMul;
-  b.vx = Math.cos(angle) * speed;
-  b.vy = Math.sin(angle) * speed;
+  return {
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    r: BALL_R,
+  };
+}
+
+function placeBalls() {
+  state.balls = [];
+  const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
+  state.balls.push(createBall(W / 2, Math.max(40, H * 0.25), angle));
   state.trail = [];
 }
 
@@ -108,11 +113,10 @@ function resize() {
   if (state.phase === "idle") {
     state.paddle.x = (W - state.paddle.w) / 2;
     state.paddle.targetX = state.paddle.x;
-    placeBall();
+    placeBalls();
   }
 }
 
-/* ResizeObserver может не быть — фолбэк */
 if (typeof ResizeObserver !== "undefined" && stage) {
   try { new ResizeObserver(() => resize()).observe(stage); } catch(e) {}
 }
@@ -122,10 +126,12 @@ window.addEventListener("orientationchange", () => setTimeout(resize, 100));
 /* ========== HUD ========== */
 const scoreEl = document.getElementById("score");
 const bestEl  = document.getElementById("best");
+const ballCountEl = document.getElementById("ballCount");
 
 function updateHUD() {
   if (scoreEl) scoreEl.textContent = state.score;
   if (bestEl)  bestEl.textContent  = state.best;
+  if (ballCountEl) ballCountEl.textContent = state.balls.length;
 }
 updateHUD();
 
@@ -138,20 +144,19 @@ const overlayBtn   = document.getElementById("overlayBtn");
 function showOverlay(title, sub, btn) {
   if (overlayTitle) overlayTitle.textContent = title;
   if (overlaySub)   overlaySub.textContent   = sub;
-  if (overlayBtn)   overlayBtn.textContent   = btn;
+  if (overlayBtn)   overlayBtn.querySelector("span").textContent = btn;
   if (overlay)      overlay.hidden = false;
 }
 function hideOverlay() { if (overlay) overlay.hidden = true; }
 
 /* ========== СТАРТ / КОНЕЦ ========== */
 function startGame() {
-  console.log("[pong] startGame");
   state.score = 0;
   state.speedMul = 1;
   state.phase = "playing";
   state.paddle.x = (W - state.paddle.w) / 2;
   state.paddle.targetX = state.paddle.x;
-  placeBall();
+  placeBalls();
   updateHUD();
   hideOverlay();
   tg?.HapticFeedback?.impactOccurred?.("medium");
@@ -165,11 +170,10 @@ function gameOver() {
     try { localStorage.setItem("pong_best", state.best); } catch(e) {}
   }
   updateHUD();
-  showOverlay("Игра окончена", `Счёт: ${state.score}`, "Играть снова");
+  showOverlay("ИГРА ОКОНЧЕНА", `Счёт: ${state.score} · Рекорд: ${state.best}`, "ИГРАТЬ СНОВА");
   tg?.HapticFeedback?.notificationOccurred?.("error");
 }
 
-/* обработчик overlay — клик И тап */
 if (overlay) {
   const onOverlay = (e) => {
     e.preventDefault();
@@ -205,7 +209,7 @@ window.addEventListener("keydown", (e) => {
   if (e.key === " " && (state.phase === "idle" || state.phase === "over")) startGame();
 });
 
-/* ========== ОБНОВЛЕНИЕ ========== */
+/* ========== ФИЗИКА ========== */
 function update(dt) {
   if (state.modalOpen) return;
 
@@ -215,44 +219,81 @@ function update(dt) {
 
   if (state.phase !== "playing") return;
 
-  const b = state.ball;
   const targetSpeed = state.baseSpeed * state.speedMul;
-  const mag = Math.hypot(b.vx, b.vy) || 1;
-  b.vx = (b.vx / mag) * targetSpeed;
-  b.vy = (b.vy / mag) * targetSpeed;
+  const ballsToAdd = [];
+  let anyScored = false;
 
-  const prevY = b.y;
-  b.x += b.vx * dt;
-  b.y += b.vy * dt;
+  for (let i = state.balls.length - 1; i >= 0; i--) {
+    const b = state.balls[i];
 
-  if (b.x - b.r < 0) { b.x = b.r;     b.vx =  Math.abs(b.vx); }
-  if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
-  if (b.y - b.r < 0) { b.y = b.r;     b.vy =  Math.abs(b.vy); }
+    // стабилизация скорости
+    const mag = Math.hypot(b.vx, b.vy) || 1;
+    b.vx = (b.vx / mag) * targetSpeed;
+    b.vy = (b.vy / mag) * targetSpeed;
 
-  if (
-    b.vy > 0 &&
-    prevY + b.r <= p.y &&
-    b.y + b.r >= p.y &&
-    b.x + b.r >= p.x &&
-    b.x - b.r <= p.x + p.w
-  ) {
-    const rel = ((b.x - p.x) / p.w) * 2 - 1;
-    const angle = rel * 1.05;
-    state.speedMul = Math.min(2.2, state.speedMul * 1.03);
-    const speed = state.baseSpeed * state.speedMul;
-    b.vx = Math.sin(angle) * speed;
-    b.vy = -Math.cos(angle) * speed;
-    b.y = p.y - b.r;
+    const prevY = b.y;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
 
-    state.score += 1;
-    updateHUD();
-    tg?.HapticFeedback?.impactOccurred?.("light");
+    // стены
+    if (b.x - b.r < 0) { b.x = b.r;     b.vx =  Math.abs(b.vx); }
+    if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+    if (b.y - b.r < 0) { b.y = b.r;     b.vy =  Math.abs(b.vy); }
+
+    // удар об платформу
+    if (
+      b.vy > 0 &&
+      prevY + b.r <= p.y &&
+      b.y + b.r >= p.y &&
+      b.x + b.r >= p.x &&
+      b.x - b.r <= p.x + p.w
+    ) {
+      const rel = ((b.x - p.x) / p.w) * 2 - 1;
+      const angle = rel * 1.05;
+      state.speedMul = Math.min(2.2, state.speedMul * 1.03);
+      const speed = state.baseSpeed * state.speedMul;
+      b.vx = Math.sin(angle) * speed;
+      b.vy = -Math.cos(angle) * speed;
+      b.y = p.y - b.r;
+
+      state.score += 1;
+      anyScored = true;
+
+      // создать новый шарик, если не достигли лимита
+      if (state.balls.length + ballsToAdd.length < MAX_BALLS) {
+        // угол: отражённый от текущего, но с разбросом
+        const newAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+        ballsToAdd.push(createBall(b.x, b.y - 4, newAngle));
+      }
+
+      tg?.HapticFeedback?.impactOccurred?.("light");
+    }
+
+    // упал
+    if (b.y - b.r > H + 20) {
+      state.balls.splice(i, 1);
+    }
   }
 
-  if (b.y - b.r > H + 10) { gameOver(); return; }
+  // добавить новые шарики
+  if (ballsToAdd.length) {
+    state.balls.push(...ballsToAdd);
+  }
 
-  state.trail.push({ x: b.x, y: b.y });
-  if (state.trail.length > 16) state.trail.shift();
+  // если все упали — game over
+  if (state.balls.length === 0) {
+    gameOver();
+    return;
+  }
+
+  if (anyScored) updateHUD();
+
+  // след от первого шарика (для красоты)
+  if (state.balls.length) {
+    const b = state.balls[0];
+    state.trail.push({ x: b.x, y: b.y });
+    if (state.trail.length > 14) state.trail.shift();
+  }
 }
 
 /* ========== ОТРИСОВКА ========== */
@@ -275,8 +316,9 @@ function draw() {
   if (!c) return;
   c.clearRect(0, 0, W, H);
 
+  // центральная линия
   c.strokeStyle = colors.accent;
-  c.globalAlpha = 0.12;
+  c.globalAlpha = 0.1;
   c.setLineDash([4, 10]);
   c.lineWidth = 1;
   c.beginPath();
@@ -286,9 +328,10 @@ function draw() {
   c.setLineDash([]);
   c.globalAlpha = 1;
 
+  // след
   state.trail.forEach((t, i) => {
-    const a = ((i + 1) / state.trail.length) * 0.35;
-    const r = state.ball.r * (i / state.trail.length);
+    const a = ((i + 1) / state.trail.length) * 0.3;
+    const r = BALL_R * (i / state.trail.length);
     c.globalAlpha = a;
     c.fillStyle = colors.accent;
     c.beginPath();
@@ -297,6 +340,7 @@ function draw() {
   });
   c.globalAlpha = 1;
 
+  // платформа
   const p = state.paddle;
   c.save();
   roundRect(c, p.x, p.y, p.w, p.h, p.h / 2);
@@ -310,86 +354,5 @@ function draw() {
   c.fill();
   c.restore();
 
-  const b = state.ball;
-  if (state.phase !== "over") {
-    c.save();
-    const ballGrad = c.createRadialGradient(
-      b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15,
-      b.x, b.y, b.r
-    );
-    ballGrad.addColorStop(0, "#ffffff");
-    ballGrad.addColorStop(1, colors.accent);
-    c.fillStyle = ballGrad;
-    c.shadowBlur = 24;
-    c.shadowColor = colors.accent;
-    c.beginPath();
-    c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    c.fill();
-    c.restore();
-  }
-}
-
-/* ========== ЦИКЛ ========== */
-let lastT = 0;
-function loop(t) {
-  const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
-  lastT = t;
-  update(dt);
-  draw();
-  requestAnimationFrame(loop);
-}
-
-/* ========== КНОПКИ ========== */
-const restartBtn = document.getElementById("restartBtn");
-const themeBtn   = document.getElementById("themeBtn");
-const closeBtn   = document.getElementById("closeColors");
-
-function bindTap(el, handler) {
-  if (!el) return;
-  let touched = false;
-  el.addEventListener("touchstart", () => { touched = true; }, { passive: true });
-  el.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    if (touched) { touched = false; handler(); }
-  }, { passive: false });
-  el.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (touched) { touched = false; return; }
-    handler();
-  });
-}
-
-bindTap(restartBtn, () => {
-  console.log("[pong] restart");
-  startGame();
-  tg?.HapticFeedback?.selectionChanged?.();
-});
-
-bindTap(themeBtn, () => {
-  console.log("[pong] theme открыт");
-  state.modalOpen = true;
-  if (colorModal) colorModal.hidden = false;
-  tg?.HapticFeedback?.selectionChanged?.();
-});
-
-bindTap(closeBtn, () => {
-  console.log("[pong] theme закрыт");
-  state.modalOpen = false;
-  if (colorModal) colorModal.hidden = true;
-});
-
-colorDots.forEach(dot => {
-  bindTap(dot, () => {
-    applyTheme(dot.dataset.theme);
-    tg?.HapticFeedback?.selectionChanged?.();
-  });
-});
-
-/* ========== СТАРТ ========== */
-readColors();
-requestAnimationFrame(() => {
-  resize();
-  updateHUD();
-  showOverlay("PING PONG", "Двигай платформу — отбивай шарик", "Играть");
-  requestAnimationFrame(loop);
-});
+  // шарики
+  if (state.phase !== "over")
