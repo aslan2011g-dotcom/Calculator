@@ -34,40 +34,39 @@
     </div>
 
     <div class="bottom-nav">
-      <div class="nav-item" id="restartBtn">
+      <button class="nav-item" id="restartBtn" type="button">
         <span>↻</span>
         <small>Заново</small>
-      </div>
-      <div class="nav-item" id="themeBtn">
+      </button>
+      <button class="nav-item" id="themeBtn" type="button">
         <span>◐</span>
         <small>Цвета</small>
-      </div>
+      </button>
     </div>
   </main>
 
-  <!-- модалка выбора цвета -->
   <div class="modal" id="colorModal" hidden>
     <div class="modal-sheet">
       <h3>Выбор цвета</h3>
-      <div class="color-options">
-        <div class="color-dot selected" data-theme="black"   title="Чёрный"></div>
-        <div class="color-dot" data-theme="blue"    title="Голубой"></div>
-        <div class="color-dot" data-theme="pink"    title="Розовый"></div>
-        <div class="color-dot" data-theme="purple"  title="Фиолетовый"></div>
-        <div class="color-dot" data-theme="green"   title="Зелёный"></div>
-        <div class="color-dot" data-theme="orange"  title="Оранжевый"></div>
-        <div class="color-dot" data-theme="red"     title="Красный"></div>
-        <div class="color-dot" data-theme="yellow"  title="Жёлтый"></div>
-        <div class="color-dot" data-theme="teal"    title="Бирюзовый"></div>
-        <div class="color-dot" data-theme="indigo"  title="Индиго"></div>
-        <div class="color-dot" data-theme="lime"    title="Лайм"></div>
-        <div class="color-dot" data-theme="cyan"    title="Циан"></div>
-        <div class="color-dot" data-theme="magenta" title="Маджента"></div>
+      <div class="color-options" id="colorOptions">
+        <button type="button" class="color-dot selected" data-theme="black"   title="Чёрный"></button>
+        <button type="button" class="color-dot" data-theme="blue"    title="Голубой"></button>
+        <button type="button" class="color-dot" data-theme="pink"    title="Розовый"></button>
+        <button type="button" class="color-dot" data-theme="purple"  title="Фиолетовый"></button>
+        <button type="button" class="color-dot" data-theme="green"   title="Зелёный"></button>
+        <button type="button" class="color-dot" data-theme="orange"  title="Оранжевый"></button>
+        <button type="button" class="color-dot" data-theme="red"     title="Красный"></button>
+        <button type="button" class="color-dot" data-theme="yellow"  title="Жёлтый"></button>
+        <button type="button" class="color-dot" data-theme="teal"    title="Бирюзовый"></button>
+        <button type="button" class="color-dot" data-theme="indigo"  title="Индиго"></button>
+        <button type="button" class="color-dot" data-theme="lime"    title="Лайм"></button>
+        <button type="button" class="color-dot" data-theme="cyan"    title="Циан"></button>
+        <button type="button" class="color-dot" data-theme="magenta" title="Маджента"></button>
       </div>
-      <button id="closeColors" class="cta">Готово</button>
+      <button id="closeColors" class="cta" type="button">Готово</button>
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <script src="./script.js"></script>
 </body>
 </html>
