@@ -1,11 +1,11 @@
-const path = require("path");
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, "public")));
+// отдаём статику из корня проекта (index.html, script.js, style.css)
+app.use(express.static(__dirname));
 
 const TOKEN = process.env.BOT_TOKEN;
 if (!TOKEN) throw new Error("Не задан BOT_TOKEN в Render");
