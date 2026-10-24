@@ -5,7 +5,7 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>Ping Pong</title>
+  <title>Ping Pong · Multiball</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="./style.css">
@@ -13,13 +13,17 @@
 <body class="theme-black">
   <main class="app">
     <header class="hud">
-      <div class="score-box">
-        <span class="label">СЧЁТ</span>
-        <span id="score">0</span>
+      <div class="stat">
+        <span class="stat-label">СЧЁТ</span>
+        <span class="stat-value" id="score">0</span>
       </div>
-      <div class="score-box">
-        <span class="label">РЕКОРД</span>
-        <span id="best">0</span>
+      <div class="stat stat-center">
+        <span class="ball-count" id="ballCount">1</span>
+        <span class="stat-label">ШАРИК</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">РЕКОРД</span>
+        <span class="stat-value" id="best">0</span>
       </div>
     </header>
 
@@ -27,26 +31,30 @@
       <canvas id="game"></canvas>
 
       <div class="overlay" id="overlay">
+        <div class="overlay-icon">◉</div>
         <h2 id="overlayTitle">PING PONG</h2>
-        <p id="overlaySub">Двигай платформу — отбивай шарик</p>
-        <button id="overlayBtn" class="cta">Играть</button>
+        <p id="overlaySub">Отбивай шарики — они размножаются</p>
+        <button id="overlayBtn" class="cta" type="button">
+          <span>ИГРАТЬ</span>
+        </button>
       </div>
     </div>
 
     <div class="bottom-nav">
-      <button class="nav-item" id="restartBtn" type="button">
-        <span>↻</span>
-        <small>Заново</small>
+      <button class="nav-btn" id="restartBtn" type="button">
+        <span class="nav-icon">↻</span>
+        <span class="nav-text">Заново</span>
       </button>
-      <button class="nav-item" id="themeBtn" type="button">
-        <span>◐</span>
-        <small>Цвета</small>
+      <button class="nav-btn" id="themeBtn" type="button">
+        <span class="nav-icon">◐</span>
+        <span class="nav-text">Цвета</span>
       </button>
     </div>
   </main>
 
   <div class="modal" id="colorModal" hidden>
     <div class="modal-sheet">
+      <div class="modal-handle"></div>
       <h3>Выбор цвета</h3>
       <div class="color-options" id="colorOptions">
         <button type="button" class="color-dot selected" data-theme="black"   title="Чёрный"></button>
@@ -63,7 +71,9 @@
         <button type="button" class="color-dot" data-theme="cyan"    title="Циан"></button>
         <button type="button" class="color-dot" data-theme="magenta" title="Маджента"></button>
       </div>
-      <button id="closeColors" class="cta" type="button">Готово</button>
+      <button id="closeColors" class="cta" type="button">
+        <span>ГОТОВО</span>
+      </button>
     </div>
   </div>
 
