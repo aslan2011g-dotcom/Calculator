@@ -7,23 +7,45 @@ const previous = document.getElementById("previous");
 const buttons = document.querySelector(".buttons");
 const historyPanel = document.getElementById("historyPanel");
 const historyList = document.getElementById("historyList");
+const colorPanel = document.getElementById("colorPanel");
+const colorDots = document.querySelectorAll(".color-dot");
 
 let expression = "";
 let finished = false;
 let history = JSON.parse(localStorage.getItem("history") || "[]");
 
-// --- тема ---
-if (localStorage.getItem("theme") === "light") {
-  document.body.classList.add("light");
-  tg?.setHeaderColor?.("#ffffff");
+// --- темы ---
+const THEMES = ["blue", "pink", "purple", "green", "orange"];
+const THEME_COLORS = {
+  blue:   "#071018",
+  pink:   "#10070d",
+  purple: "#0d0718",
+  green:  "#06120c",
+  orange: "#140a05",
+};
+
+function applyTheme(theme) {
+  if (!THEMES.includes(theme)) theme = "blue";
+  THEMES.forEach(t => document.body.classList.remove("theme-" + t));
+  document.body.classList.add("theme-" + theme);
+  localStorage.setItem("theme", theme);
+
+  colorDots.forEach(dot => {
+    dot.classList.toggle("selected", dot.dataset.theme === theme);
+  });
+
+  tg?.setHeaderColor?.(THEME_COLORS[theme]);
+  tg?.setBackgroundColor?.(THEME_COLORS[theme]);
 }
 
+applyTheme(localStorage.getItem("theme") || "blue");
+
+// --- калькулятор ---
 function render() {
   display.textContent = expression || "0";
 }
 
 function tokenize(input) {
-  // убрали %, чтобы не ловить ложные ошибки
   const tokens = input.match(/\d+(?:\.\d*)?|\.\d+|[+\-*/()]/g);
   if (!tokens || tokens.join("") !== input.replace(/\s/g, "")) {
     throw new Error("Некорректное выражение");
@@ -173,15 +195,24 @@ buttons.addEventListener("click", event => {
   }
 });
 
+// --- навигация ---
 document.getElementById("historyBtn").addEventListener("click", () => {
   historyPanel.hidden = !historyPanel.hidden;
+  if (!historyPanel.hidden) colorPanel.hidden = true;
   renderHistory();
 });
 
 document.getElementById("themeBtn").addEventListener("click", () => {
-  const isLight = document.body.classList.toggle("light");
-  localStorage.setItem("theme", isLight ? "light" : "dark");
-  tg?.setHeaderColor?.(isLight ? "#ffffff" : "#10070d");
+  colorPanel.hidden = !colorPanel.hidden;
+  if (!colorPanel.hidden) historyPanel.hidden = true;
+});
+
+// --- выбор цвета ---
+colorDots.forEach(dot => {
+  dot.addEventListener("click", () => {
+    applyTheme(dot.dataset.theme);
+    tg?.HapticFeedback?.selectionChanged();
+  });
 });
 
 document.getElementById("clearHistory").addEventListener("click", () => {
