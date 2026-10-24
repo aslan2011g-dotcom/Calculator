@@ -2,45 +2,94 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram Calculator</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#10070d">
+  <title>DOOR Calculator</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="стиль.css">
 </head>
 <body>
-  <div class="calculator">
-    <h2>🧮 Калькулятор</h2>
+  <div class="particles" aria-hidden="true"></div>
 
-    <div id="display">0</div>
+  <main class="app">
+    <header class="brand">
+      <div class="logo">÷</div>
+      <h1>DOOR <span>CALCULATOR</span></h1>
+      <p>SMART TOOLS. DARK STYLE.</p>
+    </header>
 
-    <div class="buttons">
-      <button class="action" data-action="clear">AC</button>
-      <button class="action" data-action="delete">⌫</button>
-      <button data-value="%">%</button>
-      <button class="operator" data-value="/">÷</button>
+    <section class="calculator">
+      <div class="section-label">
+        <span class="status-dot"></span>
+        КАЛЬКУЛЯТОР
+        <span class="live">ONLINE</span>
+      </div>
 
-      <button data-value="7">7</button>
-      <button data-value="8">8</button>
-      <button data-value="9">9</button>
-      <button class="operator" data-value="*">×</button>
+      <div class="screen">
+        <div id="previous"></div>
+        <div id="display" aria-live="polite">0</div>
+      </div>
 
-      <button data-value="4">4</button>
-      <button data-value="5">5</button>
-      <button data-value="6">6</button>
-      <button class="operator" data-value="-">−</button>
+      <div class="buttons">
+        <button class="special" data-action="clear">AC</button>
+        <button class="special" data-action="delete">⌫</button>
+        <button class="special" data-action="percent">%</button>
+        <button class="operator" data-value="/">÷</button>
 
-      <button data-value="1">1</button>
-      <button data-value="2">2</button>
-      <button data-value="3">3</button>
-      <button class="operator" data-value="+">+</button>
+        <button data-value="7">7</button>
+        <button data-value="8">8</button>
+        <button data-value="9">9</button>
+        <button class="operator" data-value="*">×</button>
 
-      <button data-value="(">(</button>
-      <button data-value="0">0</button>
-      <button data-value=".">.</button>
-      <button class="equal" data-action="calculate">=</button>
+        <button data-value="4">4</button>
+        <button data-value="5">5</button>
+        <button data-value="6">6</button>
+        <button class="operator" data-value="-">−</button>
+
+        <button data-value="1">1</button>
+        <button data-value="2">2</button>
+        <button data-value="3">3</button>
+        <button class="operator" data-value="+">+</button>
+
+        <button data-action="sign">+/−</button>
+        <button data-value="0" class="zero">0</button>
+        <button data-value=".">.</button>
+        <button class="equal" data-action="calculate">=</button>
+      </div>
+
+      <div class="footer">
+        <span>DOOR SYSTEM</span>
+        <span>● SECURE INTERFACE</span>
+      </div>
+    </section>
+
+    <div class="bottom-nav">
+      <div class="nav-item active">
+        <span>⌗</span>
+        <small>Калькулятор</small>
+      </div>
+      <div class="nav-item" id="historyBtn">
+        <span>◷</span>
+        <small>История</small>
+      </div>
+      <div class="nav-item" id="themeBtn">
+        <span>◐</span>
+        <small>Тема</small>
+      </div>
     </div>
-  </div>
+
+    <section class="history-panel" id="historyPanel" hidden>
+      <h3>История вычислений</h3>
+      <div id="historyList">Пока нет вычислений</div>
+      <button id="clearHistory" class="history-clear">
+        Очистить историю
+      </button>
+    </section>
+
+    <p class="copyright">DESIGNED FOR TELEGRAM MINI APPS</p>
+  </main>
 
   <script src="script.js"></script>
 </body>
