@@ -3,104 +3,70 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="theme-color" content="#071018">
-  <title>Calculator</title>
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <title>Ping Pong</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="./style.css">
 </head>
-<body class="theme-blue">
-  <div class="particles" aria-hidden="true"></div>
-
+<body class="theme-black">
   <main class="app">
-    <header class="brand">
-      <div class="logo">÷</div>
-      <h1>CALCULATOR</h1>
-      <p>SMART TOOLS. DARK STYLE.</p>
+    <header class="hud">
+      <div class="score-box">
+        <span class="label">СЧЁТ</span>
+        <span id="score">0</span>
+      </div>
+      <div class="score-box">
+        <span class="label">РЕКОРД</span>
+        <span id="best">0</span>
+      </div>
     </header>
 
-    <section class="calculator">
-      <div class="section-label">
-        <span class="status-dot"></span>
-        КАЛЬКУЛЯТОР
-        <span class="live">ONLINE</span>
+    <div class="stage" id="stage">
+      <canvas id="game"></canvas>
+
+      <div class="overlay" id="overlay">
+        <h2 id="overlayTitle">PING PONG</h2>
+        <p id="overlaySub">Двигай платформу — отбивай шарик</p>
+        <button id="overlayBtn" class="cta">Играть</button>
       </div>
-
-      <div class="screen">
-        <div id="previous"></div>
-        <div id="display" aria-live="polite">0</div>
-      </div>
-
-      <div class="buttons">
-        <button class="special" data-action="clear">AC</button>
-        <button class="special" data-action="delete">⌫</button>
-        <button class="special" data-action="percent">%</button>
-        <button class="operator" data-value="/">÷</button>
-
-        <button data-value="7">7</button>
-        <button data-value="8">8</button>
-        <button data-value="9">9</button>
-        <button class="operator" data-value="*">×</button>
-
-        <button data-value="4">4</button>
-        <button data-value="5">5</button>
-        <button data-value="6">6</button>
-        <button class="operator" data-value="-">−</button>
-
-        <button data-value="1">1</button>
-        <button data-value="2">2</button>
-        <button data-value="3">3</button>
-        <button class="operator" data-value="+">+</button>
-
-        <button data-action="sign">+/−</button>
-        <button data-value="0" class="zero">0</button>
-        <button data-value=".">.</button>
-        <button class="equal" data-action="calculate">=</button>
-      </div>
-
-      <div class="footer">
-        <span>CALC SYSTEM</span>
-        <span>● SECURE INTERFACE</span>
-      </div>
-    </section>
+    </div>
 
     <div class="bottom-nav">
-      <div class="nav-item active">
-        <span>⌗</span>
-        <small>Калькулятор</small>
-      </div>
-      <div class="nav-item" id="historyBtn">
-        <span>◷</span>
-        <small>История</small>
+      <div class="nav-item" id="restartBtn">
+        <span>↻</span>
+        <small>Заново</small>
       </div>
       <div class="nav-item" id="themeBtn">
         <span>◐</span>
         <small>Цвета</small>
       </div>
     </div>
+  </main>
 
-    <section class="history-panel" id="historyPanel" hidden>
-      <h3>История вычислений</h3>
-      <div id="historyList">Пока нет вычислений</div>
-      <button id="clearHistory" class="history-clear">
-        Очистить историю
-      </button>
-    </section>
-
-    <section class="color-panel" id="colorPanel" hidden>
+  <!-- модалка выбора цвета -->
+  <div class="modal" id="colorModal" hidden>
+    <div class="modal-sheet">
       <h3>Выбор цвета</h3>
       <div class="color-options">
-        <div class="color-dot selected" data-theme="blue"   title="Голубая"></div>
-        <div class="color-dot" data-theme="pink"   title="Розовая"></div>
-        <div class="color-dot" data-theme="purple" title="Фиолетовая"></div>
-        <div class="color-dot" data-theme="green"  title="Зелёная"></div>
-        <div class="color-dot" data-theme="orange" title="Оранжевая"></div>
+        <div class="color-dot selected" data-theme="black"   title="Чёрный"></div>
+        <div class="color-dot" data-theme="blue"    title="Голубой"></div>
+        <div class="color-dot" data-theme="pink"    title="Розовый"></div>
+        <div class="color-dot" data-theme="purple"  title="Фиолетовый"></div>
+        <div class="color-dot" data-theme="green"   title="Зелёный"></div>
+        <div class="color-dot" data-theme="orange"  title="Оранжевый"></div>
+        <div class="color-dot" data-theme="red"     title="Красный"></div>
+        <div class="color-dot" data-theme="yellow"  title="Жёлтый"></div>
+        <div class="color-dot" data-theme="teal"    title="Бирюзовый"></div>
+        <div class="color-dot" data-theme="indigo"  title="Индиго"></div>
+        <div class="color-dot" data-theme="lime"    title="Лайм"></div>
+        <div class="color-dot" data-theme="cyan"    title="Циан"></div>
+        <div class="color-dot" data-theme="magenta" title="Маджента"></div>
       </div>
-    </section>
-
-    <p class="copyright">DESIGNED FOR TELEGRAM MINI APPS</p>
-  </main>
+      <button id="closeColors" class="cta">Готово</button>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
