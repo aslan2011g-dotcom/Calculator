@@ -15,17 +15,29 @@ let finished = false;
 let history = JSON.parse(localStorage.getItem("history") || "[]");
 
 // --- темы ---
-const THEMES = ["blue", "pink", "purple", "green", "orange"];
+const THEMES = [
+  "black", "blue", "pink", "purple", "green", "orange", "red",
+  "yellow", "teal", "indigo", "lime", "cyan", "magenta"
+];
+
 const THEME_COLORS = {
-  blue:   "#071018",
-  pink:   "#10070d",
-  purple: "#0d0718",
-  green:  "#06120c",
-  orange: "#140a05",
+  black:   "#000000",
+  blue:    "#071018",
+  pink:    "#10070d",
+  purple:  "#0d0718",
+  green:   "#06120c",
+  orange:  "#140a05",
+  red:     "#140505",
+  yellow:  "#141005",
+  teal:    "#04120f",
+  indigo:  "#070b18",
+  lime:    "#0b1405",
+  cyan:    "#041318",
+  magenta: "#140518",
 };
 
 function applyTheme(theme) {
-  if (!THEMES.includes(theme)) theme = "blue";
+  if (!THEMES.includes(theme)) theme = "black";
   THEMES.forEach(t => document.body.classList.remove("theme-" + t));
   document.body.classList.add("theme-" + theme);
   localStorage.setItem("theme", theme);
@@ -38,7 +50,8 @@ function applyTheme(theme) {
   tg?.setBackgroundColor?.(THEME_COLORS[theme]);
 }
 
-applyTheme(localStorage.getItem("theme") || "blue");
+// ВАЖНО: при загрузке берём сохранённую тему, иначе — чёрную
+applyTheme(localStorage.getItem("theme") || "black");
 
 // --- калькулятор ---
 function render() {
