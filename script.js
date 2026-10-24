@@ -1,14 +1,17 @@
-console.log("[pong] start");
-
+/* ================= TELEGRAM ================= */
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 
-/* ---------- ТЕМА ---------- */
+/* ================= ТЕМА ================= */
 const THEMES = ["black","blue","pink","purple","green","orange","red","yellow","teal","indigo","lime","cyan","magenta"];
-const THEME_BG = { black:"#000000", blue:"#04101c", pink:"#14060f", purple:"#0d0718", green:"#04120a", orange:"#140a05", red:"#140505", yellow:"#141005", teal:"#04120f", indigo:"#070b18", lime:"#0b1405", cyan:"#041318", magenta:"#140518" };
+const THEME_BG = {
+  black:"#000000", blue:"#04101c", pink:"#14060f", purple:"#0d0718",
+  green:"#04120a", orange:"#140a05", red:"#140505", yellow:"#141005",
+  teal:"#04120f", indigo:"#070b18", lime:"#0b1405", cyan:"#041318", magenta:"#140518"
+};
 
-let colors = { accent: "#ffffff", accent2: "#bdbdbd" };
+const colors = { accent: "#ffffff", accent2: "#bdbdbd" };
 
 function readColors() {
   const cs = getComputedStyle(document.body);
@@ -21,25 +24,73 @@ function applyTheme(theme) {
   THEMES.forEach(t => document.body.classList.remove("theme-" + t));
   document.body.classList.add("theme-" + theme);
   try { localStorage.setItem("theme", theme); } catch(e) {}
+
   document.querySelectorAll(".color-dot").forEach(dot => {
     dot.classList.toggle("selected", dot.dataset.theme === theme);
   });
+
   tg?.setHeaderColor?.(THEME_BG[theme]);
   tg?.setBackgroundColor?.(THEME_BG[theme]);
   readColors();
 }
 
-let savedTheme = "black";
-try { savedTheme = localStorage.getItem("theme") || "black"; } catch(e) {}
-applyTheme(savedTheme);
-
-/* ---------- КАНВАС ---------- */
+/* ================= КАНВАС ================= */
 const canvas = document.getElementById("game");
 const stage  = document.getElementById("stage");
-const ctx = canvas ? canvas.getContext("2d") : null;
+const ctx    = canvas ? canvas.getContext("2d") : null;
 
 let W = 0, H = 0, DPR = 1;
 
+/* ================= СОСТОЯНИЕ ================= */
+const MAX_BALLS = 12;
+const BALL_R = 9;
+
+const state = {
+  paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0 },
+  balls: [],
+  trail: [],
+  score: 0,
+  best: 0,
+  baseSpeed: 320,
+  speedMul: 1,
+  phase: "idle",
+  modalOpen: false,
+};
+
+try { state.best = Number(localStorage.getItem("pong_best") || 0); } catch(e) {}
+
+/* ================= ЭЛЕМЕНТЫ ================= */
+const scoreEl    = document.getElementById("score");
+const bestEl     = document.getElementById("best");
+const countEl    = document.getElementById("ballCount");
+const overlay    = document.getElementById("overlay");
+const overlayTitle = document.getElementById("overlayTitle");
+const overlaySub   = document.getElementById("overlaySub");
+const overlayBtn   = document.getElementById("overlayBtn");
+const colorModal   = document.getElementById("colorModal");
+const closeColors  = document.getElementById("closeColors");
+const restartBtn   = document.getElementById("restartBtn");
+const themeBtn     = document.getElementById("themeBtn");
+
+/* ================= HUD ================= */
+function updateHUD() {
+  if (scoreEl) scoreEl.textContent = state.score;
+  if (bestEl)  bestEl.textContent  = state.best;
+  if (countEl) countEl.textContent = state.balls.length;
+}
+
+/* ================= OVERLAY ================= */
+function showOverlay(title, sub, btn) {
+  if (overlayTitle) overlayTitle.textContent = title;
+  if (overlaySub)   overlaySub.textContent   = sub;
+  if (overlayBtn)   overlayBtn.textContent   = btn;
+  if (overlay)      overlay.hidden = false;
+}
+function hideOverlay() {
+  if (overlay) overlay.hidden = true;
+}
+
+/* ================= РАЗМЕР ================= */
 function resize() {
   if (!canvas || !stage) return;
   const r = stage.getBoundingClientRect();
@@ -57,63 +108,24 @@ function resize() {
   state.paddle.y = H - 30;
   state.paddle.x = Math.max(0, Math.min(W - state.paddle.w, state.paddle.x));
   state.paddle.targetX = state.paddle.x;
+
   if (state.phase === "idle") placeBalls();
 }
 
-/* ---------- СОСТОЯНИЕ ---------- */
-const MAX_BALLS = 12;
-const BALL_R = 9;
-const state = {
-  paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0 },
-  balls: [],
-  trail: [],
-  score: 0,
-  best: 0,
-  baseSpeed: 320,
-  speedMul: 1,
-  phase: "idle",
-  modalOpen: false,
-};
-try { state.best = Number(localStorage.getItem("pong_best") || 0); } catch(e) {}
-
+/* ================= ШАРИКИ ================= */
 function createBall(x, y, angle) {
   const s = state.baseSpeed * state.speedMul;
-  return { x, y, vx: Math.cos(angle)*s, vy: Math.sin(angle)*s, r: BALL_R };
+  return { x, y, vx: Math.cos(angle) * s, vy: Math.sin(angle) * s, r: BALL_R };
 }
+
 function placeBalls() {
   state.balls = [];
-  state.balls.push(createBall(W/2, Math.max(40, H*0.25), Math.PI/2 + (Math.random()-0.5)*0.4));
+  state.balls.push(createBall(W / 2, Math.max(40, H * 0.25), Math.PI / 2 + (Math.random() - 0.5) * 0.4));
   state.trail = [];
 }
 
-/* ---------- HUD ---------- */
-const scoreEl = document.getElementById("score");
-const bestEl  = document.getElementById("best");
-const countEl = document.getElementById("ballCount");
-
-function updateHUD() {
-  if (scoreEl) scoreEl.textContent = state.score;
-  if (bestEl)  bestEl.textContent  = state.best;
-  if (countEl) countEl.textContent = state.balls.length;
-}
-
-/* ---------- OVERLAY ---------- */
-const overlay      = document.getElementById("overlay");
-const overlayTitle = document.getElementById("overlayTitle");
-const overlaySub   = document.getElementById("overlaySub");
-const overlayBtn   = document.getElementById("overlayBtn");
-
-function showOverlay(title, sub, btn) {
-  if (overlayTitle) overlayTitle.textContent = title;
-  if (overlaySub)   overlaySub.textContent   = sub;
-  if (overlayBtn)   overlayBtn.textContent   = btn;
-  if (overlay)      overlay.hidden = false;
-}
-function hideOverlay() { if (overlay) overlay.hidden = true; }
-
-/* ---------- СТАРТ / КОНЕЦ ---------- */
+/* ================= СТАРТ / КОНЕЦ ================= */
 function startGame() {
-  console.log("[pong] startGame");
   state.score = 0;
   state.speedMul = 1;
   state.phase = "playing";
@@ -122,6 +134,7 @@ function startGame() {
   placeBalls();
   updateHUD();
   hideOverlay();
+  tg?.HapticFeedback?.impactOccurred?.("medium");
 }
 
 function gameOver() {
@@ -133,45 +146,53 @@ function gameOver() {
   }
   updateHUD();
   showOverlay("ИГРА ОКОНЧЕНА", "Счёт: " + state.score, "ИГРАТЬ СНОВА");
+  tg?.HapticFeedback?.notificationOccurred?.("error");
 }
 
-/* ---------- КНОПКИ (чистый click) ---------- */
-if (overlay) {
-  overlay.addEventListener("click", () => {
-    console.log("[pong] overlay click, phase =", state.phase);
+/* ================= КНОПКИ ================= */
+if (overlayBtn) {
+  overlayBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (state.phase === "idle" || state.phase === "over") startGame();
   });
 }
 
-const restartBtn = document.getElementById("restartBtn");
-if (restartBtn) restartBtn.addEventListener("click", () => {
-  console.log("[pong] restart");
-  startGame();
-});
+if (overlay) {
+  overlay.addEventListener("click", () => {
+    if (state.phase === "idle" || state.phase === "over") startGame();
+  });
+}
 
-const themeBtn = document.getElementById("themeBtn");
-if (themeBtn) themeBtn.addEventListener("click", () => {
-  console.log("[pong] theme open");
-  state.modalOpen = true;
-  if (colorModal) colorModal.hidden = false;
-});
+if (restartBtn) {
+  restartBtn.addEventListener("click", () => {
+    startGame();
+    tg?.HapticFeedback?.selectionChanged?.();
+  });
+}
 
-const colorModal = document.getElementById("colorModal");
-const closeColors = document.getElementById("closeColors");
-if (closeColors) closeColors.addEventListener("click", () => {
-  console.log("[pong] theme close");
-  state.modalOpen = false;
-  if (colorModal) colorModal.hidden = true;
-});
+if (themeBtn) {
+  themeBtn.addEventListener("click", () => {
+    state.modalOpen = true;
+    if (colorModal) colorModal.hidden = false;
+    tg?.HapticFeedback?.selectionChanged?.();
+  });
+}
+
+if (closeColors) {
+  closeColors.addEventListener("click", () => {
+    state.modalOpen = false;
+    if (colorModal) colorModal.hidden = true;
+  });
+}
 
 document.querySelectorAll(".color-dot").forEach(dot => {
   dot.addEventListener("click", () => {
-    console.log("[pong] theme =", dot.dataset.theme);
     applyTheme(dot.dataset.theme);
+    tg?.HapticFeedback?.selectionChanged?.();
   });
 });
 
-/* ---------- УПРАВЛЕНИЕ ---------- */
+/* ================= УПРАВЛЕНИЕ ================= */
 function movePaddle(clientX) {
   if (!stage) return;
   const r = stage.getBoundingClientRect();
@@ -189,9 +210,10 @@ window.addEventListener("keydown", e => {
   if (e.key === " " && (state.phase === "idle" || state.phase === "over")) startGame();
 });
 
-/* ---------- ФИЗИКА ---------- */
+/* ================= ФИЗИКА ================= */
 function update(dt) {
   if (state.modalOpen) return;
+
   const p = state.paddle;
   p.x += (p.targetX - p.x) * Math.min(1, dt * 20);
   p.x = Math.max(0, Math.min(W - p.w, p.x));
@@ -203,6 +225,7 @@ function update(dt) {
 
   for (let i = state.balls.length - 1; i >= 0; i--) {
     const b = state.balls[i];
+
     const mag = Math.hypot(b.vx, b.vy) || 1;
     b.vx = (b.vx / mag) * targetSpeed;
     b.vy = (b.vy / mag) * targetSpeed;
@@ -234,16 +257,22 @@ function update(dt) {
       state.score += 1;
 
       if (state.balls.length + newBalls.length < MAX_BALLS) {
-        const na = -Math.PI/2 + (Math.random() - 0.5) * 1.6;
+        const na = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
         newBalls.push(createBall(b.x, b.y - 4, na));
       }
+
+      tg?.HapticFeedback?.impactOccurred?.("light");
     }
 
     if (b.y - b.r > H + 20) state.balls.splice(i, 1);
   }
 
   if (newBalls.length) state.balls.push(...newBalls);
-  if (state.balls.length === 0) { gameOver(); return; }
+
+  if (state.balls.length === 0) {
+    gameOver();
+    return;
+  }
 
   updateHUD();
 
@@ -253,7 +282,7 @@ function update(dt) {
   }
 }
 
-/* ---------- ОТРИСОВКА ---------- */
+/* ================= ОТРИСОВКА ================= */
 function roundRect(c, x, y, w, h, r) {
   c.beginPath();
   c.moveTo(x + r, y);
@@ -272,32 +301,29 @@ function draw() {
   if (!ctx) return;
   ctx.clearRect(0, 0, W, H);
 
-  // центр
   ctx.strokeStyle = colors.accent;
   ctx.globalAlpha = 0.1;
   ctx.setLineDash([4, 10]);
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(W/2, 16);
-  ctx.lineTo(W/2, H - 16);
+  ctx.moveTo(W / 2, 16);
+  ctx.lineTo(W / 2, H - 16);
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // след
   state.trail.forEach((t, i) => {
-    ctx.globalAlpha = ((i+1) / state.trail.length) * 0.3;
+    ctx.globalAlpha = ((i + 1) / state.trail.length) * 0.3;
     ctx.fillStyle = colors.accent;
     ctx.beginPath();
-    ctx.arc(t.x, t.y, BALL_R * (i / state.trail.length), 0, Math.PI*2);
+    ctx.arc(t.x, t.y, BALL_R * (i / state.trail.length), 0, Math.PI * 2);
     ctx.fill();
   });
   ctx.globalAlpha = 1;
 
-  // платформа
   const p = state.paddle;
   ctx.save();
-  roundRect(ctx, p.x, p.y, p.w, p.h, p.h/2);
+  roundRect(ctx, p.x, p.y, p.w, p.h, p.h / 2);
   const g = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
   g.addColorStop(0, colors.accent2);
   g.addColorStop(0.5, colors.accent);
@@ -308,25 +334,24 @@ function draw() {
   ctx.fill();
   ctx.restore();
 
-  // шарики
   if (state.phase !== "over") {
     state.balls.forEach(b => {
       ctx.save();
-      const bg = ctx.createRadialGradient(b.x - b.r*0.35, b.y - b.r*0.35, b.r*0.15, b.x, b.y, b.r);
+      const bg = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15, b.x, b.y, b.r);
       bg.addColorStop(0, "#ffffff");
       bg.addColorStop(1, colors.accent);
       ctx.fillStyle = bg;
       ctx.shadowBlur = 20;
       ctx.shadowColor = colors.accent;
       ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     });
   }
 }
 
-/* ---------- ЦИКЛ ---------- */
+/* ================= ЦИКЛ ================= */
 let lastT = 0;
 function loop(t) {
   const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
@@ -336,11 +361,18 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 
-/* ---------- ЗАПУСК ---------- */
-readColors();
-resize();
-updateHUD();
-showOverlay("PING PONG", "Отбивай шарики — они размножаются", "ИГРАТЬ");
-requestAnimationFrame(loop);
+/* ================= ИНИЦИАЛИЗАЦИЯ ================= */
+function init() {
+  applyTheme((() => { try { return localStorage.getItem("theme"); } catch(e) { return null; } })() || "black");
+  readColors();
+  resize();
+  updateHUD();
+  showOverlay("PING PONG", "Отбивай шарики — они размножаются", "ИГРАТЬ");
+  requestAnimationFrame(loop);
+}
 
-console.log("[pong] init done");
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+      }
