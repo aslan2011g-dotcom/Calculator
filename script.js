@@ -37,36 +37,30 @@ function applyTheme(theme) {
 const canvas = document.getElementById("game");
 const stage  = document.getElementById("stage");
 const ctx    = canvas ? canvas.getContext("2d") : null;
-let W = 0, H = 0, DPR = 1;
+let W = 1, H = 1, DPR = 1;
 
-/* ================= 3D-МИР (см) ================= */
+/* ================= 3D-МИР ================= */
 const TABLE = { W: 152.5, L: 274 };
 const NET_H = 15.25;
 const BALL_R = 2;
 const PADDLE_R = 8;
 const GRAVITY = 980;
 
-// камера
 const cam = { fov: 400, tilt: 0.62, distance: 240, height: 110, cx: 0, cy: 0 };
 
 function project(x, y, z) {
-  // x — влево/вправо, y — вдоль стола (0 ближний край → L дальний), z — высота
   const py = y - TABLE.L / 2;
   const pz = z;
-
   const cosT = Math.cos(cam.tilt);
   const sinT = Math.sin(cam.tilt);
   const ry = py * cosT - pz * sinT;
   const rz = py * sinT + pz * cosT;
-
   const camY = -TABLE.L / 2 - cam.distance;
   const dy = ry - camY;
   const dz = rz - cam.height;
-
   const scale = cam.fov / (dy + cam.distance + TABLE.L / 2);
   const sx = cam.cx + x * scale;
   const sy = cam.cy - dz * scale + 70;
-
   return { x: sx, y: sy, scale };
 }
 
@@ -85,7 +79,7 @@ const state = {
   speedMul: 1,
   phase: "idle",
   modalOpen: false,
-  lastHitter: "bot",  // кто последним бил: "bot" | "player"
+  lastHitter: "bot",
   serveTimer: 0,
   statusText: "—",
 };
@@ -131,16 +125,13 @@ function resize() {
   canvas.style.width  = W + "px";
   canvas.style.height = H + "px";
   if (ctx) ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
   cam.cx = W / 2;
   cam.cy = H * 0.35;
   cam.fov = Math.max(W, H) * 1.15;
-
   state.paddle.x = 0;
   state.paddle.targetX = 0;
   state.bot.x = 0;
   state.bot.targetX = 0;
-
   if (state.phase === "idle") setupServe("player");
 }
 
@@ -153,7 +144,7 @@ function setupServe(who) {
   b.vx = 0; b.vy = 0; b.vz = 0;
   state.trail = [];
   state.particles = [];
-  state.lastHitter = who === "player" ? "bot" : "player"; // чтобы первый удар считался
+  state.lastHitter = who === "player" ? "bot" : "player";
   state.serveTimer = 0.8;
   state.statusText = who === "player" ? "ТВОЙ УДАР" : "УДАР БОТА";
 }
@@ -164,7 +155,6 @@ function serveBall() {
   state.baseSpeed = 200;
   state.speedMul = 1;
   const speed = state.baseSpeed;
-  // подача в сторону соперника
   const angle = (Math.random() - 0.5) * 0.3;
   if (dir > 0) {
     b.vy = speed;
@@ -178,10 +168,11 @@ function serveBall() {
 }
 
 /* ================= ЧАСТИЦЫ ================= */
-function spawnParticles(x, y, z, count, power = 1) {
+function spawnParticles(x, y, z, count, power) {
+  if (!power) power = 1;
   for (let i = 0; i < count; i++) {
     state.particles.push({
-      x, y, z,
+      x: x, y: y, z: z,
       vx: (Math.random() - 0.5) * 100 * power,
       vy: (Math.random() - 0.5) * 100 * power,
       vz: Math.random() * 60 * power,
@@ -211,7 +202,7 @@ function startGame() {
   tg?.HapticFeedback?.impactOccurred?.("medium");
 }
 
-function gameOver(reason) {
+function gameOver() {
   state.phase = "over";
   if (state.score > state.best) {
     state.best = state.score;
@@ -223,28 +214,38 @@ function gameOver(reason) {
 }
 
 /* ================= КНОПКИ ================= */
-if (overlayBtn) overlayBtn.addEventListener("click", (e) => {
-  e.stopPropagation();
-  if (state.phase === "idle" || state.phase === "over") startGame();
-});
-if (overlay) overlay.addEventListener("click", () => {
-  if (state.phase === "idle" || state.phase === "over") startGame();
-});
-if (restartBtn) restartBtn.addEventListener("click", () => {
-  startGame();
-  tg?.HapticFeedback?.selectionChanged?.();
-});
-if (themeBtn) themeBtn.addEventListener("click", () => {
-  state.modalOpen = true;
-  if (colorModal) colorModal.hidden = false;
-  tg?.HapticFeedback?.selectionChanged?.();
-});
-if (closeColors) closeColors.addEventListener("click", () => {
-  state.modalOpen = false;
-  if (colorModal) colorModal.hidden = true;
-});
-document.querySelectorAll(".color-dot").forEach(dot => {
-  dot.addEventListener("click", () => {
+if (overlayBtn) {
+  overlayBtn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    if (state.phase === "idle" || state.phase === "over") startGame();
+  });
+}
+if (overlay) {
+  overlay.addEventListener("click", function() {
+    if (state.phase === "idle" || state.phase === "over") startGame();
+  });
+}
+if (restartBtn) {
+  restartBtn.addEventListener("click", function() {
+    startGame();
+    tg?.HapticFeedback?.selectionChanged?.();
+  });
+}
+if (themeBtn) {
+  themeBtn.addEventListener("click", function() {
+    state.modalOpen = true;
+    if (colorModal) colorModal.hidden = false;
+    tg?.HapticFeedback?.selectionChanged?.();
+  });
+}
+if (closeColors) {
+  closeColors.addEventListener("click", function() {
+    state.modalOpen = false;
+    if (colorModal) colorModal.hidden = true;
+  });
+}
+document.querySelectorAll(".color-dot").forEach(function(dot) {
+  dot.addEventListener("click", function() {
     applyTheme(dot.dataset.theme);
     tg?.HapticFeedback?.selectionChanged?.();
   });
@@ -265,12 +266,12 @@ function movePaddleToScreenX(clientX) {
   state.paddle.targetX = worldX;
 }
 
-window.addEventListener("pointermove", e => {
+window.addEventListener("pointermove", function(e) {
   if (state.modalOpen) return;
   if (state.phase === "playing" || state.phase === "idle") movePaddleToScreenX(e.clientX);
 });
 
-window.addEventListener("keydown", e => {
+window.addEventListener("keydown", function(e) {
   if (e.key === "ArrowLeft"  || e.key === "a") state.paddle.targetX -= 15;
   if (e.key === "ArrowRight" || e.key === "d") state.paddle.targetX += 15;
   if (e.key === " " && (state.phase === "idle" || state.phase === "over")) startGame();
@@ -280,7 +281,7 @@ window.addEventListener("keydown", e => {
 function update(dt) {
   if (state.modalOpen) return;
 
-  // платформа (игрок)
+  // платформа игрока
   const p = state.paddle;
   p.prevX = p.x;
   p.x += (p.targetX - p.x) * Math.min(1, dt * 20);
@@ -323,18 +324,17 @@ function update(dt) {
   // гравитация
   b.vz -= GRAVITY * dt;
 
-  // шаг симуляции (чтобы не пролетать)
+  // шаг симуляции
   const steps = Math.min(4, Math.ceil(Math.hypot(b.vx, b.vy, b.vz) * dt / 5));
   const sub = dt / Math.max(1, steps);
 
   for (let s = 0; s < steps; s++) {
     const prevY = b.y;
-    const prevZ = b.z;
     b.x += b.vx * sub;
     b.y += b.vy * sub;
     b.z += b.vz * sub;
 
-    // стол
+    // отскок от стола
     if (b.z - BALL_R < 0 && b.vz < 0) {
       const onTable = Math.abs(b.x) < TABLE.W / 2 && b.y > 0 && b.y < TABLE.L;
       if (onTable) {
@@ -343,61 +343,43 @@ function update(dt) {
         spawnParticles(b.x, b.y, 0, 5, 0.6);
         state.shake = Math.max(state.shake, 2);
         tg?.HapticFeedback?.impactOccurred?.("light");
-      } else {
-        // упал мимо стола
-        if (b.z < -30) {
-          if (b.y > TABLE.L / 2) {
-            // упал на стороне бота → игрок получает очко
-            state.score += 1;
-            setupServe("bot");
-          } else {
-            // упал на стороне игрока → бот получает очко
-            state.botScore += 1;
-            if (state.botScore >= 5) { gameOver(); return; }
-            setupServe("player");
-          }
-          updateHUD();
-          return;
+      } else if (b.z < -30) {
+        if (b.y > TABLE.L / 2) {
+          state.score += 1;
+          setupServe("bot");
+        } else {
+          state.botScore += 1;
+          if (state.botScore >= 5) { gameOver(); return; }
+          setupServe("player");
         }
+        updateHUD();
+        return;
       }
     }
 
     // сетка
-    if (
-      Math.abs(b.x) < TABLE.W / 2 + 2 &&
-      Math.abs(b.y - TABLE.L / 2) < 2 &&
-      b.z < NET_H &&
-      b.z > 0
-    ) {
-      // пересекает линию сетки
-      const crossedNet = (prevY < TABLE.L / 2 && b.y >= TABLE.L / 2) || (prevY > TABLE.L / 2 && b.y <= TABLE.L / 2);
-      if (crossedNet) {
-        if (b.z < NET_H) {
-          // попал в сетку — отскок
-          b.y = prevY;
-          b.vy = -b.vy * 0.4;
-          b.vz = Math.abs(b.vz) * 0.3;
-          spawnParticles(b.x, TABLE.L / 2, b.z, 8, 0.8);
-          state.shake = Math.max(state.shake, 4);
-          tg?.HapticFeedback?.impactOccurred?.("medium");
-        }
-      }
+    const crossedNet = (prevY < TABLE.L / 2 && b.y >= TABLE.L / 2) || (prevY > TABLE.L / 2 && b.y <= TABLE.L / 2);
+    if (crossedNet && Math.abs(b.x) < TABLE.W / 2 && b.z < NET_H) {
+      b.y = prevY;
+      b.vy = -b.vy * 0.4;
+      b.vz = Math.abs(b.vz) * 0.3;
+      spawnParticles(b.x, TABLE.L / 2, b.z, 8, 0.8);
+      state.shake = Math.max(state.shake, 4);
+      tg?.HapticFeedback?.impactOccurred?.("medium");
     }
 
-    // боковые стены (невидимые — просто ограничиваем)
+    // боковые стены
     if (Math.abs(b.x) > TABLE.W / 2 + 30 && b.z < 20) {
-      // ушёл в сторону
       if (b.y > TABLE.L / 2) { state.score += 1; setupServe("bot"); }
       else { state.botScore += 1; if (state.botScore >= 5) { gameOver(); return; } setupServe("player"); }
       updateHUD();
       return;
     }
 
-    // удар об ракетку игрока (внизу, y = 0)
+    // удар об ракетку игрока
     if (
       b.vy < 0 &&
-      b.y < 12 &&
-      b.y > -5 &&
+      b.y < 12 && b.y > -5 &&
       b.z < 30 &&
       Math.abs(b.x - p.x) < PADDLE_R + BALL_R &&
       state.lastHitter !== "player"
@@ -414,11 +396,10 @@ function update(dt) {
       tg?.HapticFeedback?.impactOccurred?.("medium");
     }
 
-    // удар об ракетку бота (вверху, y = L)
+    // удар об ракетку бота
     if (
       b.vy > 0 &&
-      b.y > TABLE.L - 12 &&
-      b.y < TABLE.L + 5 &&
+      b.y > TABLE.L - 12 && b.y < TABLE.L + 5 &&
       b.z < 30 &&
       Math.abs(b.x - bot.x) < PADDLE_R + BALL_R &&
       state.lastHitter !== "bot"
@@ -438,16 +419,18 @@ function update(dt) {
   // стабилизация скорости
   const mag = Math.hypot(b.vx, b.vy) || 1;
   const target = state.baseSpeed * state.speedMul;
-  b.vx = (b.vx / mag) * Math.min(target, mag * 1.05);
-  b.vy = (b.vy / mag) * Math.min(target, mag * 1.05);
+  const clamped = Math.min(target, mag * 1.05);
+  b.vx = (b.vx / mag) * clamped;
+  b.vy = (b.vy / mag) * clamped;
 
   // след
   state.trail.push({ x: b.x, y: b.y, z: b.z, life: 1 });
   if (state.trail.length > 20) state.trail.shift();
-  state.trail.forEach(t => t.life -= dt * 2);
-  state.trail = state.trail.filter(t => t.life > 0);
+  for (let i = state.trail.length - 1; i >= 0; i--) {
+    state.trail[i].life -= dt * 2;
+    if (state.trail[i].life <= 0) state.trail.splice(i, 1);
+  }
 
-  // статус
   state.statusText = state.lastHitter === "player" ? "ЛЕТИТ БОТУ" : "ЛЕТИТ ТЕБЕ";
   updateHUD();
 }
@@ -456,7 +439,6 @@ function update(dt) {
 function drawTable() {
   if (!ctx) return;
 
-  // стол — рисуем как 4-угольник в проекции
   const corners = [
     project(-TABLE.W/2, 0, 0),
     project( TABLE.W/2, 0, 0),
@@ -464,7 +446,6 @@ function drawTable() {
     project(-TABLE.W/2, TABLE.L, 0),
   ];
 
-  // тень под столом
   ctx.save();
   ctx.globalAlpha = 0.4;
   ctx.fillStyle = "#000";
@@ -477,7 +458,6 @@ function drawTable() {
   ctx.fill();
   ctx.restore();
 
-  // поверхность стола
   ctx.save();
   const g = ctx.createLinearGradient(corners[0].x, corners[0].y, corners[3].x, corners[3].y);
   g.addColorStop(0, colors.table);
@@ -490,13 +470,10 @@ function drawTable() {
   ctx.lineTo(corners[3].x, corners[3].y);
   ctx.closePath();
   ctx.fill();
-
-  // белая разметка
   ctx.strokeStyle = "rgba(255,255,255,0.7)";
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // центральная линия (вдоль)
   const l1 = project(0, 0, 0);
   const l2 = project(0, TABLE.L, 0);
   ctx.strokeStyle = "rgba(255,255,255,0.5)";
@@ -504,16 +481,6 @@ function drawTable() {
   ctx.beginPath();
   ctx.moveTo(l1.x, l1.y);
   ctx.lineTo(l2.x, l2.y);
-  ctx.stroke();
-
-  // боковые линии
-  const sideL1 = project(-TABLE.W/2, 0, 0);
-  const sideL2 = project(-TABLE.W/2, TABLE.L, 0);
-  const sideR1 = project( TABLE.W/2, 0, 0);
-  const sideR2 = project( TABLE.W/2, TABLE.L, 0);
-  ctx.beginPath();
-  ctx.moveTo(sideL1.x, sideL1.y); ctx.lineTo(sideL2.x, sideL2.y);
-  ctx.moveTo(sideR1.x, sideR1.y); ctx.lineTo(sideR2.x, sideR2.y);
   ctx.stroke();
 
   ctx.restore();
@@ -526,7 +493,6 @@ function drawNet() {
   const topL  = project(-TABLE.W/2, TABLE.L/2, NET_H);
   const topR  = project( TABLE.W/2, TABLE.L/2, NET_H);
 
-  // столбики
   ctx.save();
   ctx.strokeStyle = "rgba(255,255,255,0.9)";
   ctx.lineWidth = 3;
@@ -535,7 +501,6 @@ function drawNet() {
   ctx.moveTo(right.x, right.y); ctx.lineTo(topR.x, topR.y);
   ctx.stroke();
 
-  // сетка
   ctx.strokeStyle = "rgba(255,255,255,0.35)";
   ctx.lineWidth = 1;
   for (let i = 0; i <= 12; i++) {
@@ -548,7 +513,6 @@ function drawNet() {
     ctx.moveTo(gx, gy); ctx.lineTo(tx, ty);
     ctx.stroke();
   }
-  // горизонтальные нити
   for (let i = 0; i <= 5; i++) {
     const t = i / 5;
     ctx.beginPath();
@@ -562,11 +526,10 @@ function drawNet() {
 function drawPaddle(worldX, worldY, isPlayer) {
   if (!ctx) return;
   const base = project(worldX, worldY, 0);
-  const top  = project(worldX, worldY, isPlayer ? 15 : 15);
+  const top  = project(worldX, worldY, 15);
   const rScreen = Math.abs(top.x - base.x) || 30;
   const radius = Math.max(18, rScreen * PADDLE_R / 15);
 
-  // ручка
   const handleEnd = project(worldX, worldY + (isPlayer ? -15 : 15), 5);
   ctx.save();
   ctx.strokeStyle = shade(colors.accent, -50);
@@ -577,7 +540,6 @@ function drawPaddle(worldX, worldY, isPlayer) {
   ctx.lineTo(handleEnd.x, handleEnd.y);
   ctx.stroke();
 
-  // ракетка (эллипс в перспективе)
   const rw = radius;
   const rh = radius * 0.75;
   ctx.translate(base.x, base.y);
@@ -603,7 +565,6 @@ function drawBall() {
   const p = project(b.x, b.y, Math.max(0, b.z));
   const r = Math.max(3, 8 * p.scale * 0.15 + 3);
 
-  // тень на столе
   if (b.z > 0 && Math.abs(b.x) < TABLE.W/2 && b.y > 0 && b.y < TABLE.L) {
     const sh = project(b.x, b.y, 0);
     ctx.save();
@@ -615,8 +576,7 @@ function drawBall() {
     ctx.restore();
   }
 
-  // след
-  state.trail.forEach((t, i) => {
+  state.trail.forEach(function(t, i) {
     if (t.z < 0) return;
     const tp = project(t.x, t.y, t.z);
     ctx.save();
@@ -628,7 +588,6 @@ function drawBall() {
     ctx.restore();
   });
 
-  // мяч
   ctx.save();
   const g = ctx.createRadialGradient(p.x - r*0.35, p.y - r*0.35, r*0.1, p.x, p.y, r);
   g.addColorStop(0, "#ffffff");
@@ -645,7 +604,7 @@ function drawBall() {
 
 function drawParticles() {
   if (!ctx) return;
-  state.particles.forEach(pt => {
+  state.particles.forEach(function(pt) {
     const p = project(pt.x, pt.y, Math.max(0, pt.z));
     ctx.save();
     ctx.globalAlpha = Math.max(0, pt.life);
@@ -661,7 +620,6 @@ function draw() {
   if (!ctx) return;
   ctx.clearRect(0, 0, W, H);
 
-  // тряска
   let shakeX = 0, shakeY = 0;
   if (state.shake > 0) {
     shakeX = (Math.random() - 0.5) * state.shake * 2;
@@ -684,7 +642,7 @@ function draw() {
 function shade(hex, amt) {
   if (!hex || hex[0] !== "#") return hex;
   let c = hex.slice(1);
-  if (c.length === 3) c = c.split("").map(x => x + x).join("");
+  if (c.length === 3) c = c.split("").map(function(x){ return x + x; }).join("");
   const n = parseInt(c, 16);
   let r = (n >> 16) + amt;
   let g = ((n >> 8) & 0xff) + amt;
@@ -707,7 +665,7 @@ function loop(t) {
 
 /* ================= ИНИЦИАЛИЗАЦИЯ ================= */
 function init() {
-  applyTheme((() => { try { return localStorage.getItem("theme"); } catch(e) { return null; } })() || "black");
+  applyTheme((function() { try { return localStorage.getItem("theme"); } catch(e) { return null; } })() || "black");
   readColors();
   resize();
   updateHUD();
@@ -722,4 +680,4 @@ if (document.readyState === "loading") {
 }
 
 window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => setTimeout(resize, 100));
+window.addEventListener("orientationchange", function() { setTimeout(resize, 100); });
