@@ -24,11 +24,9 @@ function applyTheme(theme) {
   THEMES.forEach(t => document.body.classList.remove("theme-" + t));
   document.body.classList.add("theme-" + theme);
   try { localStorage.setItem("theme", theme); } catch(e) {}
-
   document.querySelectorAll(".color-dot").forEach(dot => {
     dot.classList.toggle("selected", dot.dataset.theme === theme);
   });
-
   tg?.setHeaderColor?.(THEME_BG[theme]);
   tg?.setBackgroundColor?.(THEME_BG[theme]);
   readColors();
@@ -38,20 +36,28 @@ function applyTheme(theme) {
 const canvas = document.getElementById("game");
 const stage  = document.getElementById("stage");
 const ctx    = canvas ? canvas.getContext("2d") : null;
-
 let W = 0, H = 0, DPR = 1;
 
-/* ================= СОСТОЯНИЕ ================= */
-const MAX_BALLS = 12;
-const BALL_R = 9;
+/* ================= КОНСТАНТЫ ФИЗИКИ ================= */
+const MAX_BALLS   = 12;
+const BALL_R      = 9;
+const GRAVITY     = 140;      // px/сек² — лёгкая гравитация
+const AIR_DRAG    = 0.02;     // сопротивление воздуха
+const SPIN_DRAG   = 0.55;     // затухание вращения
+const MAGNUS      = 0.35;     // эффект Магнуса (искривление от спина)
+const RESTITUTION = 0.98;     // упругость стен
+const PADDLE_REACT = 1.05;    // сила отскока от платформы
 
+/* ================= СОСТОЯНИЕ ================= */
 const state = {
-  paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0 },
+  paddle: { x: 0, y: 0, w: 90, h: 14, targetX: 0, prevX: 0, vx: 0 },
   balls: [],
   trail: [],
+  particles: [],
+  shake: 0,
   score: 0,
   best: 0,
-  baseSpeed: 320,
+  baseSpeed: 340,
   speedMul: 1,
   phase: "idle",
   modalOpen: false,
@@ -60,17 +66,17 @@ const state = {
 try { state.best = Number(localStorage.getItem("pong_best") || 0); } catch(e) {}
 
 /* ================= ЭЛЕМЕНТЫ ================= */
-const scoreEl    = document.getElementById("score");
-const bestEl     = document.getElementById("best");
-const countEl    = document.getElementById("ballCount");
-const overlay    = document.getElementById("overlay");
-const overlayTitle = document.getElementById("overlayTitle");
-const overlaySub   = document.getElementById("overlaySub");
-const overlayBtn   = document.getElementById("overlayBtn");
-const colorModal   = document.getElementById("colorModal");
-const closeColors  = document.getElementById("closeColors");
-const restartBtn   = document.getElementById("restartBtn");
-const themeBtn     = document.getElementById("themeBtn");
+const scoreEl     = document.getElementById("score");
+const bestEl      = document.getElementById("best");
+const countEl     = document.getElementById("ballCount");
+const overlay     = document.getElementById("overlay");
+const overlayTitle= document.getElementById("overlayTitle");
+const overlaySub  = document.getElementById("overlaySub");
+const overlayBtn  = document.getElementById("overlayBtn");
+const colorModal  = document.getElementById("colorModal");
+const closeColors = document.getElementById("closeColors");
+const restartBtn  = document.getElementById("restartBtn");
+const themeBtn    = document.getElementById("themeBtn");
 
 /* ================= HUD ================= */
 function updateHUD() {
@@ -86,9 +92,7 @@ function showOverlay(title, sub, btn) {
   if (overlayBtn)   overlayBtn.textContent   = btn;
   if (overlay)      overlay.hidden = false;
 }
-function hideOverlay() {
-  if (overlay) overlay.hidden = true;
-}
+function hideOverlay() { if (overlay) overlay.hidden = true; }
 
 /* ================= РАЗМЕР ================= */
 function resize() {
@@ -113,15 +117,38 @@ function resize() {
 }
 
 /* ================= ШАРИКИ ================= */
-function createBall(x, y, angle) {
+function createBall(x, y, angle, spin = 0) {
   const s = state.baseSpeed * state.speedMul;
-  return { x, y, vx: Math.cos(angle) * s, vy: Math.sin(angle) * s, r: BALL_R };
+  return {
+    x, y,
+    vx: Math.cos(angle) * s,
+    vy: Math.sin(angle) * s,
+    r: BALL_R,
+    spin: spin + (Math.random() - 0.5) * 2.5,
+  };
 }
 
 function placeBalls() {
   state.balls = [];
   state.balls.push(createBall(W / 2, Math.max(40, H * 0.25), Math.PI / 2 + (Math.random() - 0.5) * 0.4));
   state.trail = [];
+  state.particles = [];
+}
+
+/* ================= ЧАСТИЦЫ ================= */
+function spawnParticles(x, y, count, power = 1) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = (80 + Math.random() * 200) * power;
+    state.particles.push({
+      x, y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp,
+      life: 1,
+      maxLife: 0.4 + Math.random() * 0.3,
+      size: 1.5 + Math.random() * 2.5,
+    });
+  }
 }
 
 /* ================= СТАРТ / КОНЕЦ ================= */
@@ -131,6 +158,9 @@ function startGame() {
   state.phase = "playing";
   state.paddle.x = (W - state.paddle.w) / 2;
   state.paddle.targetX = state.paddle.x;
+  state.paddle.prevX = state.paddle.x;
+  state.paddle.vx = 0;
+  state.shake = 0;
   placeBalls();
   updateHUD();
   hideOverlay();
@@ -156,20 +186,17 @@ if (overlayBtn) {
     if (state.phase === "idle" || state.phase === "over") startGame();
   });
 }
-
 if (overlay) {
   overlay.addEventListener("click", () => {
     if (state.phase === "idle" || state.phase === "over") startGame();
   });
 }
-
 if (restartBtn) {
   restartBtn.addEventListener("click", () => {
     startGame();
     tg?.HapticFeedback?.selectionChanged?.();
   });
 }
-
 if (themeBtn) {
   themeBtn.addEventListener("click", () => {
     state.modalOpen = true;
@@ -177,14 +204,12 @@ if (themeBtn) {
     tg?.HapticFeedback?.selectionChanged?.();
   });
 }
-
 if (closeColors) {
   closeColors.addEventListener("click", () => {
     state.modalOpen = false;
     if (colorModal) colorModal.hidden = true;
   });
 }
-
 document.querySelectorAll(".color-dot").forEach(dot => {
   dot.addEventListener("click", () => {
     applyTheme(dot.dataset.theme);
@@ -214,9 +239,25 @@ window.addEventListener("keydown", e => {
 function update(dt) {
   if (state.modalOpen) return;
 
+  // платформа
   const p = state.paddle;
+  p.prevX = p.x;
   p.x += (p.targetX - p.x) * Math.min(1, dt * 20);
   p.x = Math.max(0, Math.min(W - p.w, p.x));
+  p.vx = (p.x - p.prevX) / Math.max(dt, 0.001);
+
+  // частицы
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const pt = state.particles[i];
+    pt.life -= dt / pt.maxLife;
+    if (pt.life <= 0) { state.particles.splice(i, 1); continue; }
+    pt.vy += GRAVITY * dt;
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
+  }
+
+  // тряска
+  if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 30);
 
   if (state.phase !== "playing") return;
 
@@ -226,6 +267,18 @@ function update(dt) {
   for (let i = state.balls.length - 1; i >= 0; i--) {
     const b = state.balls[i];
 
+    // эффект Магнуса — искривление от спина
+    b.vx += b.spin * MAGNUS * dt;
+    b.spin *= (1 - SPIN_DRAG * dt);
+
+    // гравитация
+    b.vy += GRAVITY * dt;
+
+    // сопротивление воздуха
+    b.vx *= (1 - AIR_DRAG * dt);
+    b.vy *= (1 - AIR_DRAG * dt);
+
+    // стабилизация скорости
     const mag = Math.hypot(b.vx, b.vy) || 1;
     b.vx = (b.vx / mag) * targetSpeed;
     b.vy = (b.vy / mag) * targetSpeed;
@@ -234,9 +287,27 @@ function update(dt) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
 
-    if (b.x - b.r < 0) { b.x = b.r;     b.vx =  Math.abs(b.vx); }
-    if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx); }
-    if (b.y - b.r < 0) { b.y = b.r;     b.vy =  Math.abs(b.vy); }
+    // стены с упругостью
+    if (b.x - b.r < 0) {
+      b.x = b.r;
+      b.vx = Math.abs(b.vx) * RESTITUTION;
+      b.spin += 1.5;
+      spawnParticles(0, b.y, 6, 0.6);
+      state.shake = Math.max(state.shake, 2);
+    }
+    if (b.x + b.r > W) {
+      b.x = W - b.r;
+      b.vx = -Math.abs(b.vx) * RESTITUTION;
+      b.spin -= 1.5;
+      spawnParticles(W, b.y, 6, 0.6);
+      state.shake = Math.max(state.shake, 2);
+    }
+    if (b.y - b.r < 0) {
+      b.y = b.r;
+      b.vy = Math.abs(b.vy) * RESTITUTION;
+      spawnParticles(b.x, 0, 6, 0.6);
+      state.shake = Math.max(state.shake, 2);
+    }
 
     // удар об платформу
     if (
@@ -247,18 +318,29 @@ function update(dt) {
       b.x - b.r <= p.x + p.w
     ) {
       const rel = ((b.x - p.x) / p.w) * 2 - 1;
-      const angle = rel * 1.05;
-      state.speedMul = Math.min(2.2, state.speedMul * 1.03);
+      const angle = rel * PADDLE_REACT;
+
+      state.speedMul = Math.min(2.4, state.speedMul * 1.03);
       const speed = state.baseSpeed * state.speedMul;
-      b.vx = Math.sin(angle) * speed;
+
+      // скорость платформы влияет на отскок
+      const paddleInfluence = Math.max(-200, Math.min(200, p.vx * 0.4));
+
+      b.vx = Math.sin(angle) * speed + paddleInfluence;
       b.vy = -Math.cos(angle) * speed;
       b.y = p.y - b.r;
 
+      // спин от скорости платформы
+      b.spin = (p.vx / 100) + rel * 1.8;
+
       state.score += 1;
+      state.shake = Math.max(state.shake, 6);
+
+      spawnParticles(b.x, b.y, 14, 1);
 
       if (state.balls.length + newBalls.length < MAX_BALLS) {
-        const na = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
-        newBalls.push(createBall(b.x, b.y - 4, na));
+        const na = -Math.PI / 2 + (Math.random() - 0.5) * 1.4;
+        newBalls.push(createBall(b.x, b.y - 4, na, (Math.random() - 0.5) * 2));
       }
 
       tg?.HapticFeedback?.impactOccurred?.("light");
@@ -277,102 +359,4 @@ function update(dt) {
   updateHUD();
 
   if (state.balls[0]) {
-    state.trail.push({ x: state.balls[0].x, y: state.balls[0].y });
-    if (state.trail.length > 14) state.trail.shift();
-  }
-}
-
-/* ================= ОТРИСОВКА ================= */
-function roundRect(c, x, y, w, h, r) {
-  c.beginPath();
-  c.moveTo(x + r, y);
-  c.lineTo(x + w - r, y);
-  c.arcTo(x + w, y, x + w, y + h, r);
-  c.lineTo(x + w, y + h - r);
-  c.arcTo(x + w, y + h, x + w - r, y + h, r);
-  c.lineTo(x + r, y + h);
-  c.arcTo(x, y + h, x, y + h - r, r);
-  c.lineTo(x, y + r);
-  c.arcTo(x, y, x + r, y, r);
-  c.closePath();
-}
-
-function draw() {
-  if (!ctx) return;
-  ctx.clearRect(0, 0, W, H);
-
-  ctx.strokeStyle = colors.accent;
-  ctx.globalAlpha = 0.1;
-  ctx.setLineDash([4, 10]);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(W / 2, 16);
-  ctx.lineTo(W / 2, H - 16);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.globalAlpha = 1;
-
-  state.trail.forEach((t, i) => {
-    ctx.globalAlpha = ((i + 1) / state.trail.length) * 0.3;
-    ctx.fillStyle = colors.accent;
-    ctx.beginPath();
-    ctx.arc(t.x, t.y, BALL_R * (i / state.trail.length), 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.globalAlpha = 1;
-
-  const p = state.paddle;
-  ctx.save();
-  roundRect(ctx, p.x, p.y, p.w, p.h, p.h / 2);
-  const g = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
-  g.addColorStop(0, colors.accent2);
-  g.addColorStop(0.5, colors.accent);
-  g.addColorStop(1, colors.accent2);
-  ctx.fillStyle = g;
-  ctx.shadowBlur = 22;
-  ctx.shadowColor = colors.accent;
-  ctx.fill();
-  ctx.restore();
-
-  if (state.phase !== "over") {
-    state.balls.forEach(b => {
-      ctx.save();
-      const bg = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15, b.x, b.y, b.r);
-      bg.addColorStop(0, "#ffffff");
-      bg.addColorStop(1, colors.accent);
-      ctx.fillStyle = bg;
-      ctx.shadowBlur = 20;
-      ctx.shadowColor = colors.accent;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
-  }
-}
-
-/* ================= ЦИКЛ ================= */
-let lastT = 0;
-function loop(t) {
-  const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
-  lastT = t;
-  update(dt);
-  draw();
-  requestAnimationFrame(loop);
-}
-
-/* ================= ИНИЦИАЛИЗАЦИЯ ================= */
-function init() {
-  applyTheme((() => { try { return localStorage.getItem("theme"); } catch(e) { return null; } })() || "black");
-  readColors();
-  resize();
-  updateHUD();
-  showOverlay("PING PONG", "Отбивай шарики — они размножаются", "ИГРАТЬ");
-  requestAnimationFrame(loop);
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-      }
+    state.trail.push({ x: state.balls[0].x, y: state.balls[0].y, life: 1
