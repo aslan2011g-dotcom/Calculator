@@ -9,30 +9,26 @@
   --glass-strong: rgba(255, 255, 255, 0.09);
   --glass-border: rgba(255, 255, 255, 0.16);
   --glass-shadow: rgba(0, 0, 0, 0.5);
+  --table: #1a6b3c;
 }
 
-body.theme-black   { --bg:#000;    --text:#fff;    --muted:#8a8a8a; --accent:#fff;    --accent-2:#bdbdbd; --glow:#ffffff33; }
-body.theme-blue    { --bg:#04101c; --text:#f0f9ff; --muted:#8aa8ba; --accent:#24c8ff; --accent-2:#0a84ff; --glow:#24c8ff66; }
-body.theme-pink    { --bg:#14060f; --text:#fff5fa; --muted:#a99aa8; --accent:#ff245d; --accent-2:#d90c48; --glow:#ff245d66; }
-body.theme-purple  { --bg:#0d0718; --text:#f7f0ff; --muted:#a89ac2; --accent:#a855f7; --accent-2:#7c3aed; --glow:#a855f766; }
-body.theme-green   { --bg:#04120a; --text:#f0fff5; --muted:#8ab299; --accent:#22e07a; --accent-2:#0fa85a; --glow:#22e07a66; }
-body.theme-orange  { --bg:#140a05; --text:#fff7f0; --muted:#c2a89a; --accent:#ff8a24; --accent-2:#e0660a; --glow:#ff8a2466; }
-body.theme-red     { --bg:#140505; --text:#fff0f0; --muted:#c29a9a; --accent:#ff3b3b; --accent-2:#c40a0a; --glow:#ff3b3b66; }
-body.theme-yellow  { --bg:#141005; --text:#fffbea; --muted:#c2b89a; --accent:#ffd400; --accent-2:#c4a000; --glow:#ffd40066; }
-body.theme-teal    { --bg:#04120f; --text:#eefffb; --muted:#8ab2ab; --accent:#14e0c8; --accent-2:#0aa899; --glow:#14e0c866; }
-body.theme-indigo  { --bg:#070b18; --text:#eef1ff; --muted:#8a93b2; --accent:#5b6cff; --accent-2:#3a48d1; --glow:#5b6cff66; }
-body.theme-lime    { --bg:#0b1405; --text:#f6ffea; --muted:#99b28a; --accent:#a3ff24; --accent-2:#7ac40a; --glow:#a3ff2466; }
-body.theme-cyan    { --bg:#041318; --text:#eefaff; --muted:#8aa8b2; --accent:#14d0ff; --accent-2:#0a9cc4; --glow:#14d0ff66; }
-body.theme-magenta { --bg:#140518; --text:#ffeefb; --muted:#b29ab2; --accent:#ff24e0; --accent-2:#c40aa8; --glow:#ff24e066; }
+body.theme-black   { --bg:#000;    --text:#fff;    --muted:#8a8a8a; --accent:#fff;    --accent-2:#bdbdbd; --glow:#ffffff33; --table:#1a6b3c; }
+body.theme-blue    { --bg:#04101c; --text:#f0f9ff; --muted:#8aa8ba; --accent:#24c8ff; --accent-2:#0a84ff; --glow:#24c8ff66; --table:#1a4c6b; }
+body.theme-pink    { --bg:#14060f; --text:#fff5fa; --muted:#a99aa8; --accent:#ff245d; --accent-2:#d90c48; --glow:#ff245d66; --table:#6b1a3c; }
+body.theme-purple  { --bg:#0d0718; --text:#f7f0ff; --muted:#a89ac2; --accent:#a855f7; --accent-2:#7c3aed; --glow:#a855f766; --table:#3c1a6b; }
+body.theme-green   { --bg:#04120a; --text:#f0fff5; --muted:#8ab299; --accent:#22e07a; --accent-2:#0fa85a; --glow:#22e07a66; --table:#1a6b3c; }
+body.theme-orange  { --bg:#140a05; --text:#fff7f0; --muted:#c2a89a; --accent:#ff8a24; --accent-2:#e0660a; --glow:#ff8a2466; --table:#6b3c1a; }
+body.theme-red     { --bg:#140505; --text:#fff0f0; --muted:#c29a9a; --accent:#ff3b3b; --accent-2:#c40a0a; --glow:#ff3b3b66; --table:#6b1a1a; }
+body.theme-yellow  { --bg:#141005; --text:#fffbea; --muted:#c2b89a; --accent:#ffd400; --accent-2:#c4a000; --glow:#ffd40066; --table:#6b5c1a; }
+body.theme-teal    { --bg:#04120f; --text:#eefffb; --muted:#8ab2ab; --accent:#14e0c8; --accent-2:#0aa899; --glow:#14e0c866; --table:#1a6b5c; }
+body.theme-indigo  { --bg:#070b18; --text:#eef1ff; --muted:#8a93b2; --accent:#5b6cff; --accent-2:#3a48d1; --glow:#5b6cff66; --table:#1a2c6b; }
+body.theme-lime    { --bg:#0b1405; --text:#f6ffea; --muted:#99b28a; --accent:#a3ff24; --accent-2:#7ac40a; --glow:#a3ff2466; --table:#3c6b1a; }
+body.theme-cyan    { --bg:#041318; --text:#eefaff; --muted:#8aa8b2; --accent:#14d0ff; --accent-2:#0a9cc4; --glow:#14d0ff66; --table:#1a5c6b; }
+body.theme-magenta { --bg:#140518; --text:#ffeefb; --muted:#b29ab2; --accent:#ff24e0; --accent-2:#c40aa8; --glow:#ff24e066; --table:#6b1a5c; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
-}
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 
 body {
   background:
@@ -42,36 +38,22 @@ body {
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   transition: background 0.4s ease, color 0.4s ease;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 
 button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; border: none; background: none; padding: 0; }
 
 .app {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-  max-width: 480px;
-  height: 100vh;
-  height: 100dvh;
-  margin: 0 auto;
-  padding: 12px 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  width: 100%; max-width: 480px; height: 100vh; height: 100dvh;
+  margin: 0 auto; padding: 12px 12px 14px;
 }
 
-/* HUD */
 .hud { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; flex-shrink: 0; }
 
 .stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 10px 8px;
-  border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 10px 8px; border-radius: 16px;
   background: var(--glass-strong);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
@@ -82,15 +64,10 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .stat-label { font-size: 9px; letter-spacing: 1.4px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 .stat-value { font-size: 22px; font-weight: 800; color: var(--accent); text-shadow: 0 0 12px var(--glow); font-variant-numeric: tabular-nums; }
 .stat-center { min-width: 78px; background: linear-gradient(145deg, var(--glass-strong), var(--glass)); }
-.ball-count { font-size: 24px; font-weight: 900; color: var(--accent); text-shadow: 0 0 16px var(--glow); line-height: 1; }
+.ball-count { font-size: 18px; font-weight: 900; color: var(--accent); text-shadow: 0 0 16px var(--glow); line-height: 1; }
 
-/* STAGE */
 .stage {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  border-radius: 22px;
-  overflow: hidden;
+  position: relative; flex: 1; min-height: 0; border-radius: 22px; overflow: hidden;
   background: var(--glass);
   -webkit-backdrop-filter: blur(22px) saturate(160%);
   backdrop-filter: blur(22px) saturate(160%);
@@ -100,58 +77,33 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 
 #game { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 
-/* OVERLAY */
 .overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 24px;
-  text-align: center;
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 24px; text-align: center;
   background: rgba(0, 0, 0, 0.6);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  z-index: 5;
-  pointer-events: auto;
-  animation: fadeIn 0.25s ease;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  z-index: 5; pointer-events: auto; animation: fadeIn 0.25s ease;
 }
 .overlay[hidden] { display: none !important; }
 
-.overlay-icon { font-size: 44px; color: var(--accent); text-shadow: 0 0 24px var(--glow); animation: pulse 2s ease-in-out infinite; }
+.overlay-icon { font-size: 44px; animation: pulse 2s ease-in-out infinite; }
 .overlay h2 { margin: 0; font-size: clamp(26px, 8vw, 34px); letter-spacing: 3px; font-weight: 900; color: var(--accent); text-shadow: 0 0 20px var(--glow); }
 .overlay p { margin: 0; color: rgba(255, 255, 255, 0.7); font-size: 14px; max-width: 260px; line-height: 1.4; }
 
-/* CTA */
 .cta {
-  margin-top: 8px;
-  padding: 15px 40px;
-  border-radius: 16px;
+  margin-top: 8px; padding: 15px 40px; border-radius: 16px;
   background: linear-gradient(145deg, var(--accent), var(--accent-2));
-  color: #000;
-  font-weight: 900;
-  font-size: 15px;
-  letter-spacing: 2px;
+  color: #000; font-weight: 900; font-size: 15px; letter-spacing: 2px;
   box-shadow: 0 0 30px var(--glow), 0 8px 20px rgba(0,0,0,0.4);
-  transition: transform 0.12s ease;
-  position: relative;
-  z-index: 10;
-  pointer-events: auto;
+  transition: transform 0.12s ease; position: relative; z-index: 10; pointer-events: auto;
 }
 .cta:active { transform: scale(0.94); }
 
-/* BOTTOM NAV */
 .bottom-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0; }
 .nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 10px;
-  border-radius: 16px;
-  color: var(--muted);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px 10px; border-radius: 16px; color: var(--muted);
   background: var(--glass-strong);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
@@ -163,27 +115,16 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .nav-icon { font-size: 20px; }
 .nav-text { font-size: 12px; font-weight: 700; letter-spacing: 1px; }
 
-/* MODAL */
 .modal {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.6);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  z-index: 100;
-  animation: fadeIn 0.2s ease;
+  position: fixed; inset: 0; display: flex; align-items: flex-end; justify-content: center;
+  padding: 12px; background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  z-index: 100; animation: fadeIn 0.2s ease;
 }
 .modal[hidden] { display: none !important; }
 
 .modal-sheet {
-  width: 100%;
-  max-width: 448px;
-  padding: 16px 20px 22px;
-  border-radius: 26px;
+  width: 100%; max-width: 448px; padding: 16px 20px 22px; border-radius: 26px;
   background: var(--glass-strong);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
   backdrop-filter: blur(30px) saturate(180%);
@@ -197,10 +138,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 
 .color-options { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .color-dot {
-  aspect-ratio: 1;
-  width: 100%;
-  border-radius: 50%;
-  border: 2px solid transparent;
+  aspect-ratio: 1; width: 100%; border-radius: 50%; border: 2px solid transparent;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   touch-action: manipulation;
 }
