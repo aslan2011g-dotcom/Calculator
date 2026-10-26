@@ -42,10 +42,12 @@ let W = 1, H = 1, DPR = 1;
 const MAX_BALLS = 12;
 const BALL_R = 8;
 const PADDLE_H = 12;
+const SPLIT_CHANCE = 0.35;   // шанс размножения при ударе
+const MAX_BOT_SCORE = 5;
 
 const state = {
   paddle: { x: 0, y: 0, w: 90, h: PADDLE_H, targetX: 0, vx: 0, prevX: 0 },
-  bot:    { x: 0, y: 0, w: 90, h: PADDLE_H, targetX: 0, vx: 0, prevX: 0, speed: 0.18 },
+  bot:    { x: 0, y: 0, w: 90, h: PADDLE_H, targetX: 0, vx: 0, prevX: 0 },
   balls: [],
   trail: [],
   particles: [],
@@ -59,9 +61,11 @@ const state = {
   modalOpen: false,
   lastHitter: "bot",
   serveTimer: 0,
+  mode: "bot",   // "bot" | "wall"
 };
 
 try { state.best = Number(localStorage.getItem("pong_best") || 0); } catch(e) {}
+try { state.mode = localStorage.getItem("pong_mode") || "bot"; } catch(e) {}
 
 /* ================= ЭЛЕМЕНТЫ ================= */
 const scoreEl     = document.getElementById("score");
@@ -75,11 +79,14 @@ const colorModal  = document.getElementById("colorModal");
 const closeColors = document.getElementById("closeColors");
 const restartBtn  = document.getElementById("restartBtn");
 const themeBtn    = document.getElementById("themeBtn");
+const modeBtn     = document.getElementById("modeBtn");
+const modeText    = document.getElementById("modeText");
 
 function updateHUD() {
   if (scoreEl)     scoreEl.textContent     = state.score;
-  if (botScoreEl)  botScoreEl.textContent  = state.botScore;
+  if (botScoreEl)  botScoreEl.textContent  = state.mode === "bot" ? state.botScore : "—";
   if (ballCountEl) ballCountEl.textContent = state.balls.length || 1;
+  if (modeText)    modeText.textContent    = state.mode === "bot" ? "С ботом" : "Без бота";
 }
 
 function showOverlay(title, sub, btn, animate) {
@@ -91,7 +98,7 @@ function showOverlay(title, sub, btn, animate) {
     overlay.classList.remove("closing");
     if (animate) {
       overlay.classList.add("opening");
-      setTimeout(() => overlay.classList.remove("opening"), 500);
+      setTimeout(function() { overlay.classList.remove("opening"); }, 500);
     }
   }
 }
@@ -99,7 +106,7 @@ function showOverlay(title, sub, btn, animate) {
 function hideOverlayAnimated() {
   if (!overlay) return;
   overlay.classList.add("closing");
-  setTimeout(() => {
+  setTimeout(function() {
     overlay.hidden = true;
     overlay.classList.remove("closing");
   }, 350);
@@ -162,9 +169,7 @@ function serveBall() {
   const s = state.baseSpeed;
   const angle = Math.PI / 2 + (Math.random() - 0.5) * 0.4;
   b.vx = Math.cos(angle) * s * 0.6;
-  b.vy = Math.sin(angle) * s * dir;
-  if (dir < 0) b.vy = -Math.abs(b.vy);
-  else b.vy = Math.abs(b.vy);
+  b.vy = dir > 0 ? Math.abs(Math.sin(angle) * s) : -Math.abs(Math.sin(angle) * s);
 }
 
 /* ================= ЧАСТИЦЫ ================= */
@@ -202,12 +207,11 @@ function startGame() {
   setupServe("player");
   updateHUD();
 
-  // 🎬 Анимация старта
   if (stage) {
     stage.classList.remove("launching");
     void stage.offsetWidth;
     stage.classList.add("launching");
-    setTimeout(() => stage.classList.remove("launching"), 650);
+    setTimeout(function() { stage.classList.remove("launching"); }, 650);
   }
 
   hideOverlayAnimated();
@@ -222,7 +226,7 @@ function gameOver() {
     try { localStorage.setItem("pong_best", state.best); } catch(e) {}
   }
   updateHUD();
-  showOverlay("ИГРА ОКОНЧЕНА", "Счёт " + state.score + " : " + state.botScore + " · Рекорд: " + state.best, "ИГРАТЬ СНОВА", true);
+  showOverlay("ИГРА ОКОНЧЕНА", "Счёт: " + state.score + " · Рекорд: " + state.best, "ИГРАТЬ СНОВА", true);
   tg?.HapticFeedback?.notificationOccurred?.("error");
 }
 
@@ -255,6 +259,21 @@ if (closeColors) {
   closeColors.addEventListener("click", function() {
     state.modalOpen = false;
     if (colorModal) colorModal.hidden = true;
+  });
+}
+if (modeBtn) {
+  modeBtn.addEventListener("click", function() {
+    state.mode = state.mode === "bot" ? "wall" : "bot";
+    try { localStorage.setItem("pong_mode", state.mode); } catch(e) {}
+    updateHUD();
+    state.phase = "idle";
+    setupServe("player");
+    showOverlay(
+      state.mode === "bot" ? "PING PONG · БОТ" : "PING PONG · СТЕНА",
+      state.mode === "bot" ? "Отбивай — шарики размножаются" : "Стена сверху отбивает сама",
+      "ИГРАТЬ", true
+    );
+    tg?.HapticFeedback?.selectionChanged?.();
   });
 }
 document.querySelectorAll(".color-dot").forEach(function(dot) {
@@ -294,12 +313,13 @@ function update(dt) {
   p.x = Math.max(0, Math.min(W - p.w, p.x));
   p.vx = (p.x - p.prevX) / Math.max(dt, 0.001);
 
-  // бот
+  // бот — только в режиме bot
   const bot = state.bot;
-  if (state.phase === "playing" && state.balls.length) {
+  if (state.mode === "bot" && state.phase === "playing" && state.balls.length) {
     let nearest = null;
     let nearestDist = Infinity;
-    for (const b of state.balls) {
+    for (let i = 0; i < state.balls.length; i++) {
+      const b = state.balls[i];
       if (b.vy < 0) {
         const d = Math.abs(b.y - bot.y);
         if (d < nearestDist) { nearestDist = d; nearest = b; }
@@ -328,7 +348,6 @@ function update(dt) {
 
   if (state.phase !== "playing") return;
 
-  // подача
   if (state.serveTimer > 0) {
     state.serveTimer -= dt;
     if (state.serveTimer <= 0) serveBall();
@@ -341,7 +360,6 @@ function update(dt) {
   for (let i = state.balls.length - 1; i >= 0; i--) {
     const b = state.balls[i];
 
-    // стабилизация скорости
     const mag = Math.hypot(b.vx, b.vy) || 1;
     b.vx = (b.vx / mag) * targetSpeed;
     b.vy = (b.vy / mag) * targetSpeed;
@@ -361,13 +379,27 @@ function update(dt) {
       b.vx = -Math.abs(b.vx);
       spawnParticles(W, b.y, 6, 0.6);
     }
+
+    // верхняя стена / бот
     if (b.y - b.r < 0) {
-      b.y = b.r;
-      b.vy = Math.abs(b.vy);
+      if (state.mode === "wall") {
+        // стена отбивает сама
+        b.y = b.r;
+        b.vy = Math.abs(b.vy);
+        state.lastHitter = "bot"; // считаем, что «стена» = «бот» (не даёт очко игроку)
+        spawnParticles(b.x, 0, 8, 0.8);
+        state.shake = Math.max(state.shake, 2);
+        tg?.HapticFeedback?.impactOccurred?.("light");
+      } else {
+        // в режиме бота верхняя стена просто отражает
+        b.y = b.r;
+        b.vy = Math.abs(b.vy);
+      }
     }
 
-    // удар об ракетку БОТА (сверху)
+    // удар об ракетку БОТА (только в режиме bot)
     if (
+      state.mode === "bot" &&
       b.vy < 0 &&
       b.y - b.r <= bot.y + bot.h &&
       b.y - b.r >= bot.y - 4 &&
@@ -385,7 +417,7 @@ function update(dt) {
       tg?.HapticFeedback?.impactOccurred?.("light");
     }
 
-    // удар об платформу ИГРОКА (снизу) — размножение!
+    // удар об платформу ИГРОКА — случайное размножение
     if (
       b.vy > 0 &&
       prevY + b.r <= p.y &&
@@ -406,14 +438,19 @@ function update(dt) {
       state.lastHitter = "player";
       tg?.HapticFeedback?.impactOccurred?.("medium");
 
-      // 🎾 РАЗМНОЖЕНИЕ: добавить новый шарик
-      if (state.balls.length + newBalls.length < MAX_BALLS) {
+      // 🎲 СЛУЧАЙНОЕ размножение: шанс 35%
+      if (
+        Math.random() < SPLIT_CHANCE &&
+        state.balls.length + newBalls.length < MAX_BALLS
+      ) {
         const na = -Math.PI / 2 + (Math.random() - 0.5) * 1.4;
         const nb = createBall(b.x, b.y - 4, na);
         nb.vx = Math.cos(na) * targetSpeed;
         nb.vy = -Math.abs(Math.sin(na) * targetSpeed);
         newBalls.push(nb);
         spawnParticles(b.x, b.y, 8, 1.2);
+        // лёгкая вибрация-«бонус»
+        tg?.HapticFeedback?.notificationOccurred?.("success");
       }
     }
 
@@ -423,8 +460,8 @@ function update(dt) {
       continue;
     }
 
-    // ушёл вверх (бот пропустил)
-    if (b.y + b.r < -10) {
+    // ушёл вверх (только в режиме бота — если бот пропустил)
+    if (state.mode === "bot" && b.y + b.r < -10) {
       state.balls.splice(i, 1);
       state.score += 1;
       state.shake = Math.max(state.shake, 6);
@@ -434,20 +471,22 @@ function update(dt) {
     }
   }
 
-  if (newBalls.length) state.balls.push(...newBalls);
+  if (newBalls.length) state.balls.push.apply(state.balls, newBalls);
 
-  // если все упали вниз — game over
+  // все упали вниз
   if (state.balls.length === 0) {
-    state.botScore += 1;
-    if (state.botScore >= 5) { gameOver(); return; }
+    if (state.mode === "bot") {
+      state.botScore += 1;
+      if (state.botScore >= MAX_BOT_SCORE) { gameOver(); return; }
+    }
     setupServe("player");
   }
 
   updateHUD();
 
   // след
-  for (const b of state.balls) {
-    state.trail.push({ x: b.x, y: b.y, life: 1 });
+  for (let i = 0; i < state.balls.length; i++) {
+    state.trail.push({ x: state.balls[i].x, y: state.balls[i].y, life: 1 });
   }
   if (state.trail.length > 40) state.trail.splice(0, state.trail.length - 40);
   for (let i = state.trail.length - 1; i >= 0; i--) {
@@ -457,22 +496,6 @@ function update(dt) {
 }
 
 /* ================= ОТРИСОВКА ================= */
-function drawPaddle(p, isPlayer) {
-  if (!ctx) return;
-  ctx.save();
-  const grad = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
-  grad.addColorStop(0, colors.accent2);
-  grad.addColorStop(0.5, colors.accent);
-  grad.addColorStop(1, colors.accent2);
-  ctx.fillStyle = grad;
-  ctx.shadowBlur = 22;
-  ctx.shadowColor = colors.accent;
-  ctx.beginPath();
-  roundRectPath(ctx, p.x, p.y, p.w, p.h, p.h / 2);
-  ctx.fill();
-  ctx.restore();
-}
-
 function roundRectPath(c, x, y, w, h, r) {
   c.beginPath();
   c.moveTo(x + r, y);
@@ -487,6 +510,36 @@ function roundRectPath(c, x, y, w, h, r) {
   c.closePath();
 }
 
+function drawPaddle(p) {
+  if (!ctx) return;
+  ctx.save();
+  const grad = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+  grad.addColorStop(0, colors.accent2);
+  grad.addColorStop(0.5, colors.accent);
+  grad.addColorStop(1, colors.accent2);
+  ctx.fillStyle = grad;
+  ctx.shadowBlur = 22;
+  ctx.shadowColor = colors.accent;
+  roundRectPath(ctx, p.x, p.y, p.w, p.h, p.h / 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawWall() {
+  if (!ctx) return;
+  // «стена» — тонкая полоса сверху
+  ctx.save();
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, colors.accent2);
+  grad.addColorStop(0.5, colors.accent);
+  grad.addColorStop(1, colors.accent2);
+  ctx.fillStyle = grad;
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = colors.accent;
+  ctx.fillRect(0, 0, W, 4);
+  ctx.restore();
+}
+
 function draw() {
   if (!ctx) return;
   ctx.clearRect(0, 0, W, H);
@@ -499,7 +552,6 @@ function draw() {
     ctx.translate(shakeX, shakeY);
   }
 
-  // центральная линия
   ctx.strokeStyle = colors.accent;
   ctx.globalAlpha = 0.12;
   ctx.setLineDash([4, 10]);
@@ -511,8 +563,8 @@ function draw() {
   ctx.setLineDash([]);
   ctx.globalAlpha = 1;
 
-  // след
-  state.trail.forEach(function(t) {
+  for (let i = 0; i < state.trail.length; i++) {
+    const t = state.trail[i];
     ctx.save();
     ctx.globalAlpha = t.life * 0.25;
     ctx.fillStyle = colors.accent;
@@ -520,14 +572,17 @@ function draw() {
     ctx.arc(t.x, t.y, BALL_R * 0.6, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-  });
+  }
 
-  // платформы
-  drawPaddle(state.bot, false);
-  drawPaddle(state.paddle, true);
+  if (state.mode === "bot") {
+    drawPaddle(state.bot);
+  } else {
+    drawWall();
+  }
+  drawPaddle(state.paddle);
 
-  // частицы
-  state.particles.forEach(function(pt) {
+  for (let i = 0; i < state.particles.length; i++) {
+    const pt = state.particles[i];
     ctx.save();
     ctx.globalAlpha = Math.max(0, pt.life);
     ctx.fillStyle = colors.accent;
@@ -535,11 +590,11 @@ function draw() {
     ctx.arc(pt.x, pt.y, pt.size * pt.life, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-  });
+  }
 
-  // шарики
   if (state.phase !== "over") {
-    state.balls.forEach(function(b) {
+    for (let i = 0; i < state.balls.length; i++) {
+      const b = state.balls[i];
       ctx.save();
       const g = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15, b.x, b.y, b.r);
       g.addColorStop(0, "#ffffff");
@@ -551,7 +606,7 @@ function draw() {
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-    });
+    }
   }
 
   if (state.shake > 0) ctx.restore();
@@ -573,7 +628,11 @@ function init() {
   readColors();
   resize();
   updateHUD();
-  showOverlay("PING PONG", "Отбивай — шарики размножаются", "ИГРАТЬ", false);
+  showOverlay(
+    state.mode === "bot" ? "PING PONG · БОТ" : "PING PONG · СТЕНА",
+    state.mode === "bot" ? "Отбивай — шарики размножаются" : "Стена сверху отбивает сама",
+    "ИГРАТЬ", false
+  );
   requestAnimationFrame(loop);
 }
 
