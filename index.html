@@ -5,7 +5,7 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>Table Tennis 3D</title>
+  <title>Ping Pong · Bot · Multiball</title>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="./style.css">
@@ -18,8 +18,8 @@
         <span class="stat-value" id="score">0</span>
       </div>
       <div class="stat stat-center">
-        <span class="ball-count" id="status">—</span>
-        <span class="stat-label">МЯЧ</span>
+        <span class="ball-count" id="ballCount">1</span>
+        <span class="stat-label">ШАРИК</span>
       </div>
       <div class="stat">
         <span class="stat-label">БОТ</span>
@@ -31,10 +31,12 @@
       <canvas id="game"></canvas>
 
       <div class="overlay" id="overlay">
-        <div class="overlay-icon">🏓</div>
-        <h2 id="overlayTitle">TABLE TENNIS</h2>
-        <p id="overlaySub">Двигай ракетку — отбивай мяч</p>
-        <button id="overlayBtn" class="cta" type="button">ИГРАТЬ</button>
+        <div class="overlay-content" id="overlayContent">
+          <div class="overlay-icon">◉</div>
+          <h2 id="overlayTitle">PING PONG</h2>
+          <p id="overlaySub">Отбивай — шарики размножаются</p>
+          <button id="overlayBtn" class="cta" type="button">ИГРАТЬ</button>
+        </div>
       </div>
     </div>
 
