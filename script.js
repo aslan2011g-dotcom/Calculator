@@ -307,3 +307,281 @@ function update(dt) {
     }
     if (nearest) {
       bot.targetX = nearest.x - bot.w / 2 + (Math.random() - 0.5) * 20;
+    }
+  }
+  bot.prevX = bot.x;
+  bot.x += (bot.targetX - bot.x) * Math.min(1, dt * 10);
+  bot.x = Math.max(0, Math.min(W - bot.w, bot.x));
+  bot.vx = (bot.x - bot.prevX) / Math.max(dt, 0.001);
+
+  // частицы
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const pt = state.particles[i];
+    pt.life -= dt / pt.maxLife;
+    if (pt.life <= 0) { state.particles.splice(i, 1); continue; }
+    pt.vy += 200 * dt;
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
+  }
+
+  if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 30);
+
+  if (state.phase !== "playing") return;
+
+  // подача
+  if (state.serveTimer > 0) {
+    state.serveTimer -= dt;
+    if (state.serveTimer <= 0) serveBall();
+    return;
+  }
+
+  const targetSpeed = state.baseSpeed * state.speedMul;
+  const newBalls = [];
+
+  for (let i = state.balls.length - 1; i >= 0; i--) {
+    const b = state.balls[i];
+
+    // стабилизация скорости
+    const mag = Math.hypot(b.vx, b.vy) || 1;
+    b.vx = (b.vx / mag) * targetSpeed;
+    b.vy = (b.vy / mag) * targetSpeed;
+
+    const prevY = b.y;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+
+    // стены
+    if (b.x - b.r < 0) {
+      b.x = b.r;
+      b.vx = Math.abs(b.vx);
+      spawnParticles(0, b.y, 6, 0.6);
+    }
+    if (b.x + b.r > W) {
+      b.x = W - b.r;
+      b.vx = -Math.abs(b.vx);
+      spawnParticles(W, b.y, 6, 0.6);
+    }
+    if (b.y - b.r < 0) {
+      b.y = b.r;
+      b.vy = Math.abs(b.vy);
+    }
+
+    // удар об ракетку БОТА (сверху)
+    if (
+      b.vy < 0 &&
+      b.y - b.r <= bot.y + bot.h &&
+      b.y - b.r >= bot.y - 4 &&
+      b.x + b.r >= bot.x &&
+      b.x - b.r <= bot.x + bot.w
+    ) {
+      const rel = ((b.x - bot.x) / bot.w) * 2 - 1;
+      const angle = -Math.PI / 2 + rel * 1.05;
+      b.y = bot.y + bot.h + b.r;
+      b.vx = Math.cos(angle) * targetSpeed + bot.vx * 0.3;
+      b.vy = Math.abs(Math.sin(angle) * targetSpeed);
+      state.lastHitter = "bot";
+      spawnParticles(b.x, bot.y + bot.h, 10, 1);
+      state.shake = Math.max(state.shake, 3);
+      tg?.HapticFeedback?.impactOccurred?.("light");
+    }
+
+    // удар об платформу ИГРОКА (снизу) — размножение!
+    if (
+      b.vy > 0 &&
+      prevY + b.r <= p.y &&
+      b.y + b.r >= p.y &&
+      b.x + b.r >= p.x &&
+      b.x - b.r <= p.x + p.w
+    ) {
+      const rel = ((b.x - p.x) / p.w) * 2 - 1;
+      const angle = Math.PI / 2 + rel * 1.05;
+      b.y = p.y - b.r;
+      b.vx = Math.cos(angle) * targetSpeed + p.vx * 0.3;
+      b.vy = -Math.abs(Math.sin(angle) * targetSpeed);
+
+      state.score += 1;
+      state.speedMul = Math.min(2.2, state.speedMul * 1.03);
+      state.shake = Math.max(state.shake, 5);
+      spawnParticles(b.x, b.y, 12, 1);
+      state.lastHitter = "player";
+      tg?.HapticFeedback?.impactOccurred?.("medium");
+
+      // 🎾 РАЗМНОЖЕНИЕ: добавить новый шарик
+      if (state.balls.length + newBalls.length < MAX_BALLS) {
+        const na = -Math.PI / 2 + (Math.random() - 0.5) * 1.4;
+        const nb = createBall(b.x, b.y - 4, na);
+        nb.vx = Math.cos(na) * targetSpeed;
+        nb.vy = -Math.abs(Math.sin(na) * targetSpeed);
+        newBalls.push(nb);
+        spawnParticles(b.x, b.y, 8, 1.2);
+      }
+    }
+
+    // упал вниз (игрок пропустил)
+    if (b.y - b.r > H + 10) {
+      state.balls.splice(i, 1);
+      continue;
+    }
+
+    // ушёл вверх (бот пропустил)
+    if (b.y + b.r < -10) {
+      state.balls.splice(i, 1);
+      state.score += 1;
+      state.shake = Math.max(state.shake, 6);
+      spawnParticles(b.x, 0, 14, 1.3);
+      tg?.HapticFeedback?.notificationOccurred?.("success");
+      continue;
+    }
+  }
+
+  if (newBalls.length) state.balls.push(...newBalls);
+
+  // если все упали вниз — game over
+  if (state.balls.length === 0) {
+    state.botScore += 1;
+    if (state.botScore >= 5) { gameOver(); return; }
+    setupServe("player");
+  }
+
+  updateHUD();
+
+  // след
+  for (const b of state.balls) {
+    state.trail.push({ x: b.x, y: b.y, life: 1 });
+  }
+  if (state.trail.length > 40) state.trail.splice(0, state.trail.length - 40);
+  for (let i = state.trail.length - 1; i >= 0; i--) {
+    state.trail[i].life -= dt * 2;
+    if (state.trail[i].life <= 0) state.trail.splice(i, 1);
+  }
+}
+
+/* ================= ОТРИСОВКА ================= */
+function drawPaddle(p, isPlayer) {
+  if (!ctx) return;
+  ctx.save();
+  const grad = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+  grad.addColorStop(0, colors.accent2);
+  grad.addColorStop(0.5, colors.accent);
+  grad.addColorStop(1, colors.accent2);
+  ctx.fillStyle = grad;
+  ctx.shadowBlur = 22;
+  ctx.shadowColor = colors.accent;
+  ctx.beginPath();
+  roundRectPath(ctx, p.x, p.y, p.w, p.h, p.h / 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function roundRectPath(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.lineTo(x + w, y + h - r);
+  c.arcTo(x + w, y + h, x + w - r, y + h, r);
+  c.lineTo(x + r, y + h);
+  c.arcTo(x, y + h, x, y + h - r, r);
+  c.lineTo(x, y + r);
+  c.arcTo(x, y, x + r, y, r);
+  c.closePath();
+}
+
+function draw() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, W, H);
+
+  let shakeX = 0, shakeY = 0;
+  if (state.shake > 0) {
+    shakeX = (Math.random() - 0.5) * state.shake * 2;
+    shakeY = (Math.random() - 0.5) * state.shake * 2;
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+  }
+
+  // центральная линия
+  ctx.strokeStyle = colors.accent;
+  ctx.globalAlpha = 0.12;
+  ctx.setLineDash([4, 10]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, H / 2);
+  ctx.lineTo(W, H / 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
+  // след
+  state.trail.forEach(function(t) {
+    ctx.save();
+    ctx.globalAlpha = t.life * 0.25;
+    ctx.fillStyle = colors.accent;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, BALL_R * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // платформы
+  drawPaddle(state.bot, false);
+  drawPaddle(state.paddle, true);
+
+  // частицы
+  state.particles.forEach(function(pt) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, pt.life);
+    ctx.fillStyle = colors.accent;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.size * pt.life, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // шарики
+  if (state.phase !== "over") {
+    state.balls.forEach(function(b) {
+      ctx.save();
+      const g = ctx.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.15, b.x, b.y, b.r);
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(1, colors.accent);
+      ctx.fillStyle = g;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = colors.accent;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  if (state.shake > 0) ctx.restore();
+}
+
+/* ================= ЦИКЛ ================= */
+let lastT = 0;
+function loop(t) {
+  const dt = lastT ? Math.min(0.05, (t - lastT) / 1000) : 0.016;
+  lastT = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ================= ИНИЦИАЛИЗАЦИЯ ================= */
+function init() {
+  applyTheme((function() { try { return localStorage.getItem("theme"); } catch(e) { return null; } })() || "black");
+  readColors();
+  resize();
+  updateHUD();
+  showOverlay("PING PONG", "Отбивай — шарики размножаются", "ИГРАТЬ", false);
+  requestAnimationFrame(loop);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}
+
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", function() { setTimeout(resize, 100); });
