@@ -207,7 +207,7 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
 .cta:active { transform: scale(0.94); }
 
 /* BOTTOM NAV */
-.bottom-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0; }
+.bottom-nav { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; flex-shrink: 0; }
 .nav-btn {
   display: flex;
   align-items: center;
